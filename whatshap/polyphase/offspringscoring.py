@@ -11,10 +11,10 @@ import logging
 
 from math import log, isnan
 from collections import defaultdict
-from typing import List, Iterable, Tuple
+from collections.abc import Iterable
 from scipy.stats import binom
 from scipy.special import binom as binom_coeff
-from functools import lru_cache
+from functools import cache
 
 from whatshap.polyphase.solver import TriangleSparseMatrix, ProgenyGenotypeLikelihoods
 from whatshap.polyphase.variantselection import VariantInfo
@@ -23,7 +23,7 @@ from whatshap.vcf import VariantTable
 logger = logging.getLogger(__name__)
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_binom_pmf(n, k, g, ploidy, error_rate):
     if g < 0 or g > ploidy or not isinstance(g, int):
         raise ValueError(f"Invalid genotype alt-count ({g}).")
@@ -37,14 +37,14 @@ def hyp(k, N, M, n):
 def correct_variant_types(
     variant_table: VariantTable,
     progeny_table: VariantTable,
-    offspring: List[str],
+    offspring: list[str],
     varinfo: VariantInfo,
     phasing_param,
 ):
     # compute unbiased progeny genotype likelihoods
     priors = compute_gt_likelihood_priors(phasing_param.ploidy)
     off_gl = get_offspring_gl(variant_table, progeny_table, offspring, varinfo, phasing_param)
-    correction = dict()
+    correction = {}
 
     # compute best fitting variant type based on progeny genotypes
     var_id = -1
@@ -72,26 +72,26 @@ def correct_variant_types(
 
     # show variant corrections:
     logger.info("   Correcting variant type based on progenies:")
-    for old_gt in correction:
-        total = sum([correction[old_gt][new_gt] for new_gt in correction[old_gt]])
+    for old_gt, correction_old_gt in correction.items():
+        total = sum([correction_old_gt[new_gt] for new_gt in correction_old_gt])
         if total == 0:
             continue
         logger.info(f"   {old_gt[0]}/{old_gt[1]} ({total})")
-        for new_gt in correction[old_gt]:
-            num = correction[old_gt][new_gt]
-            perc = 100 * correction[old_gt][new_gt] / total
+        for new_gt in correction_old_gt:
+            num = correction_old_gt[new_gt]
+            perc = 100 * correction_old_gt[new_gt] / total
             logger.info("%s", f"      -> {new_gt[0]}/{new_gt[1]}: {num} ({perc:2.1f}%)")
 
 
 def get_offspring_gl(
     variant_table: VariantTable,
     progeny_table: VariantTable,
-    offspring: List[str],
+    offspring: list[str],
     varinfo: VariantInfo,
     phasing_param,
 ):
     # create map to find genetic positions in progeny table
-    genpos_to_progenypos = dict()
+    genpos_to_progenypos = {}
     for i in range(len(progeny_table)):
         genpos = progeny_table.variants[i].position
         if genpos:
@@ -232,7 +232,7 @@ def compute_gt_likelihood_priors(ploidy):
 def compute_gt_likelihoods(
     progeny_table: VariantTable,
     offspring: str,
-    position_pairs: Iterable[Tuple[int, int]],
+    position_pairs: Iterable[tuple[int, int]],
     varinfo: VariantInfo,
     param,
     gt_priors=None,
@@ -246,7 +246,7 @@ def compute_gt_likelihoods(
         if progeny_pos == prev_pos:
             gt_likelihoods.append(gt_likelihoods[-1])
             continue
-        gl = [0.0 for _ in range(0, param.ploidy + 1)]
+        gl = [0.0 for _ in range(param.ploidy + 1)]
         ref = varinfo[parent_pos].ref
         alt = varinfo[parent_pos].alt
         ref_dp = allele_depths[progeny_pos][ref] if len(allele_depths[progeny_pos]) > ref else 0
@@ -254,7 +254,7 @@ def compute_gt_likelihoods(
         num_alts_parent = varinfo[parent_pos].alt_count
         num_alts_coparent = varinfo[parent_pos].co_alt_count
         if ref_dp + alt_dp >= param.ploidy:
-            for i in range(0, param.ploidy + 1):
+            for i in range(param.ploidy + 1):
                 gl[i] = get_binom_pmf(
                     ref_dp + alt_dp, alt_dp, i, param.ploidy, param.allele_error_rate
                 )
@@ -263,7 +263,7 @@ def compute_gt_likelihoods(
             # normalizing likelihoods to sum up to 1 is not necessary, because we compute likelihood
             # ratios later anyways. otherwise it would be done here
             sum_gl = sum(gl)
-            for i in range(0, param.ploidy + 1):
+            for i in range(param.ploidy + 1):
                 gl[i] = gl[i] / sum_gl
         else:
             gl = None

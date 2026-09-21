@@ -39,8 +39,8 @@ def test_haplotag(tmp_path):
         assert len(fields1) == len(fields2) == 4
         if n == 0:
             continue
-        queryname1, haplotype1, phaseset1, chromosome1 = fields1
-        queryname2, haplotype2, phaseset2, chromosome2 = fields2
+        queryname1, haplotype1, _phaseset1, chromosome1 = fields1
+        queryname2, haplotype2, _phaseset2, chromosome2 = fields2
         assert queryname1 == queryname2
         assert (haplotype1 == haplotype2 == "none") or (haplotype1 != haplotype2)
         assert chromosome1 == chromosome2
@@ -808,8 +808,8 @@ def test_haplotag_missing_SM_tag(tmp_path):
                 assert len(fields1) == len(fields2) == 4
                 if n == 0:
                     continue
-                queryname1, haplotype1, phaseset1, chromosome1 = fields1
-                queryname2, haplotype2, phaseset2, chromosome2 = fields2
+                queryname1, haplotype1, _phaseset1, chromosome1 = fields1
+                queryname2, haplotype2, _phaseset2, chromosome2 = fields2
                 assert queryname1 == queryname2
                 assert haplotype1 == haplotype2
                 assert chromosome1 == chromosome2
@@ -939,7 +939,7 @@ def test_haplotag_10X(tmp_path):
         if alignment.has_tag("BX") and alignment.has_tag("HP"):
             bx_tag_to_readlist[alignment.get_tag("BX")].append(alignment)
     # reads having same BX tag need to be assigned to same haplotype
-    for tag in bx_tag_to_readlist.keys():
+    for tag in bx_tag_to_readlist:
         haplotype = bx_tag_to_readlist[tag][0].get_tag("HP")
         for read in bx_tag_to_readlist[tag]:
             assert haplotype == read.get_tag("HP")
@@ -1091,7 +1091,7 @@ def test_haplotag_selected_regions(tmp_path):
         alignment_file="tests/data/haplotag.bam",
         haplotag_list=outlist,
         output=outbam,
-        regions=["chr1:{}-{}".format(start1, end1), "chr1:{}".format(start2)],
+        regions=[f"chr1:{start1}-{end1}", f"chr1:{start2}"],
     )
 
     var_region1 = set()
@@ -1216,11 +1216,13 @@ def test_haplotag_tetraploid(tmp_path):
 def test_haplotag_duplicates_are_tagged(tmp_path):
     # Create a version of the BAM file where all reads are marked as duplicates
     inbam_dup = tmp_path / "haplotag-duplicates.bam"
-    with pysam.AlignmentFile("tests/data/haplotag.bam") as infile:
-        with pysam.AlignmentFile(inbam_dup, mode="wb", template=infile) as outfile:
-            for record in infile:
-                record.is_duplicate = True
-                outfile.write(record)
+    with (
+        pysam.AlignmentFile("tests/data/haplotag.bam") as infile,
+        pysam.AlignmentFile(inbam_dup, mode="wb", template=infile) as outfile,
+    ):
+        for record in infile:
+            record.is_duplicate = True
+            outfile.write(record)
     pysam.index(str(inbam_dup))
     outbam_dup = tmp_path / "output-nodup.bam"
     outbam_nodup = tmp_path / "output-dup.bam"

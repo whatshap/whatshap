@@ -148,7 +148,7 @@ def run_polyphasegenetic(
         for sample in samples:
             if sample not in parent_sample_set:
                 raise CommandLineError(
-                    "Sample {!r} requested on command-line not found in VCF".format(sample)
+                    f"Sample {sample!r} requested on command-line not found in VCF"
                 )
         samples = frozenset(samples)
 
@@ -178,12 +178,12 @@ def run_polyphasegenetic(
                         chromosome,
                     )
                     with timers("write_vcf"):
-                        superreads, components = dict(), dict()
+                        superreads, components = {}, {}
                         vcf_writer.write(chromosome, superreads, components)
                     continue
 
                 # These two variables hold the phasing results for all samples
-                superreads, components = dict(), dict()
+                superreads, components = {}, {}
 
                 logger.info("Number of variants among all samples: %d", len(variant_table))
 
@@ -317,7 +317,7 @@ def phase_single_sample(
     components = {}
     superreads = ReadSet()
     for i in range(param.ploidy):
-        superreads.add(Read("superread {}".format(i + 1), 0, 0))
+        superreads.add(Read(f"superread {i + 1}", 0, 0))
 
     marker_per_pos = defaultdict(list)
     for i, hap in enumerate(haplo_skeletons):
@@ -389,8 +389,8 @@ def determine_pedigree(pedigree_file, samples, parent_samples, progeny_samples=N
     """
 
     # For each parent, store co-parent and list of progenies
-    coparents = dict()
-    progenies = dict()
+    coparents = {}
+    progenies = {}
     with open(pedigree_file, "r") as ped:
         for i, line in enumerate(ped):
             tokens = line.replace("\n", "").split(" ")
@@ -453,8 +453,8 @@ def determine_pedigree(pedigree_file, samples, parent_samples, progeny_samples=N
             raise CommandLineError(msg)
 
     # filter out progeny samples unpresent in VCFs and unrequested parent samples
-    fprogenies = dict()
-    fcoparents = dict()
+    fprogenies = {}
+    fcoparents = {}
     for sample in samples:
         fprogenies[sample] = []
         fcoparents[sample] = coparents[sample]

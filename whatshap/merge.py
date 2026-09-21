@@ -1,6 +1,5 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict
 
 from math import log
 
@@ -100,12 +99,12 @@ class ReadMerger(ReadMergerBase):
             gblue.add_node(i, begin=begin, end=end)
             gnotblue.add_node(i, begin=begin, end=end)
             queue[i] = {"begin": begin, "end": end, "alleles": alleles}
-            for x in [id for id in queue.keys() if queue[id]["end"] <= begin]:  # type: ignore
+            for x in [id for id in queue if queue[id]["end"] <= begin]:  # type: ignore
                 del queue[x]
-            for j in queue.keys():
+            for j, queue_j in queue.items():
                 if i == j:
                     continue
-                match, mismatch = eval_overlap(queue[j], queue[i])
+                match, mismatch = eval_overlap(queue_j, queue[i])
                 if (
                     match + mismatch >= thr_neg_diff
                     and min(match, mismatch) / (match + mismatch) <= self._max_error_rate
@@ -140,11 +139,9 @@ class ReadMerger(ReadMergerBase):
         # same blue connected component
 
         blue_component = {}
-        current_component = 0
-        for conncomp in nx.connected_components(gblue):
+        for current_component, conncomp in enumerate(nx.connected_components(gblue)):
             for v in conncomp:
                 blue_component[v] = current_component
-            current_component += 1
 
         for u, v in gnotblue.edges():
             if blue_component[u] != blue_component[v]:
@@ -163,7 +160,7 @@ class ReadMerger(ReadMergerBase):
 
         # Merge blue components (somehow)
         logger.debug("Started Merging Reads...")
-        superreads: Dict = {}  # superreads given by the clusters (if clustering)
+        superreads: dict = {}  # superreads given by the clusters (if clustering)
         representative = {}  # cluster representative of a read in a cluster
 
         for cc in nx.connected_components(gblue):
@@ -183,10 +180,8 @@ class ReadMerger(ReadMergerBase):
                     superreads[r][position][allele] += quality
 
         merged_reads = ReadSet()
-        readn = 0
-        for id in range(len(reads)):
+        for readn, id in enumerate(range(len(reads))):
             read = Read(f"read{readn}")
-            readn += 1
             if id in representative:
                 if id == representative[id]:
                     for position in sorted(superreads[id]):

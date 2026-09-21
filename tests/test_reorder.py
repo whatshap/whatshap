@@ -117,7 +117,7 @@ def get_instance3():
 
 
 def test_find_breakpoints1():
-    am, clustering, threads, haplotypes = get_instance1()
+    _am, _clustering, threads, _haplotypes = get_instance1()
     bp = find_breakpoints(threads)
     assert len(bp) == 2
     assert bp[0].position == 3
@@ -127,7 +127,7 @@ def test_find_breakpoints1():
 
 
 def test_find_breakpoints2():
-    am, clustering, threads, haplotypes = get_instance2()
+    _am, _clustering, threads, _haplotypes = get_instance2()
     bp = find_breakpoints(threads)
     assert len(bp) == 3
     assert bp[0].position == 3
@@ -138,7 +138,7 @@ def test_find_breakpoints2():
 
 
 def test_find_breakpoints3():
-    am, clustering, threads, haplotypes = get_instance3()
+    _am, _clustering, threads, _haplotypes = get_instance3()
     bp = find_breakpoints(threads)
     assert len(bp) == 1
     assert bp[0].position == 6
@@ -307,7 +307,7 @@ def test_compute_link_likelihoods():
 
 
 def test_compute_phase_affiliation():
-    am, clustering, threads, haplotypes = get_instance2()
+    am, _clustering, _threads, haplotypes = get_instance2()
     bp = [
         PhaseBreakpoint(3, [0, 1, 2], 0),
         PhaseBreakpoint(6, [0, 1, 2], 0),

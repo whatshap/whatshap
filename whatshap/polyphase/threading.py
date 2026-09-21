@@ -5,8 +5,6 @@ from .solver import HaploThreader
 from math import ceil, log
 from scipy.stats import binom
 
-from typing import List, Dict, Tuple
-
 from whatshap.polyphase import (
     Allele,
     Genotype,
@@ -23,13 +21,13 @@ logger = logging.getLogger(__name__)
 
 def run_threading(
     allele_matrix: AlleleMatrix,
-    clustering: List[Cluster],
+    clustering: list[Cluster],
     ploidy: int,
-    genotypes: List[Genotype],
+    genotypes: list[Genotype],
     distrust_genotypes: bool = False,
     max_cluster_gap: int = 10,
     error_rate: float = 0.05,
-) -> Tuple[Threading, List[Haplotype]]:
+) -> tuple[Threading, list[Haplotype]]:
     """
     Main method for the threading stage of the polyploid phasing algorithm. Taken inputs:
 
@@ -83,8 +81,8 @@ def compute_readlength_snp_distance_ratio(allele_matrix: AlleleMatrix) -> float:
 
 
 def compute_threading_path(
-    cov_map: List[List[ClusterId]],
-    allele_depths: List[Dict[ClusterId, AlleleDepth]],
+    cov_map: list[list[ClusterId]],
+    allele_depths: list[dict[ClusterId, AlleleDepth]],
     ploidy: int,
     switch_cost: float = 32.0,
     affine_switch_cost: float = 8.0,
@@ -110,8 +108,8 @@ def compute_threading_path(
 
 
 def compute_haplotypes(
-    path: Threading, consensus_lists: List[Dict[ClusterId, List[Allele]]], ploidy: int
-) -> List[Haplotype]:
+    path: Threading, consensus_lists: list[dict[ClusterId, list[Allele]]], ploidy: int
+) -> list[Haplotype]:
     """
     Fills each haplotypes using the computed clusters and their consensus lists
     """
@@ -133,12 +131,12 @@ def compute_haplotypes(
 
 def force_genotypes(
     path: Threading,
-    haplotypes: List[Haplotype],
-    genotypes: List[Genotype],
-    cov_map: List[List[ClusterId]],
-    allele_depths: List[Dict[ClusterId, AlleleDepth]],
+    haplotypes: list[Haplotype],
+    genotypes: list[Genotype],
+    cov_map: list[list[ClusterId]],
+    allele_depths: list[dict[ClusterId, AlleleDepth]],
     error_rate: float,
-) -> List[Haplotype]:
+) -> list[Haplotype]:
     num_vars = len(path)
     for pos in range(num_vars):
         # count allele occurences
@@ -153,7 +151,7 @@ def force_genotypes(
             continue
 
         # detect abundances and shortages
-        abundant_alleles, lacking_alleles = dict(), dict()
+        abundant_alleles, lacking_alleles = {}, {}
         alleles_to_insert, affected_positions = [], []
         for a in alleles:
             if a not in genotypes[pos]:
@@ -182,7 +180,7 @@ def force_genotypes(
         given_config = [haplotypes[h][pos] for h in range(len(haplotypes))]
         best_config = given_config
         best_likelihood = -float("inf")
-        for perm in set(list(itertools.permutations(alleles_to_insert))):
+        for perm in set(itertools.permutations(alleles_to_insert)):
             # build next config (given + affected slots permuted)
             newconfig = given_config[:]
             for i in range(len(perm)):
@@ -207,11 +205,7 @@ def force_genotypes(
                         allele_mult[a] = (
                             allele_mult[a] * (1 - error_rate) + (1 - allele_mult[a]) * error_rate
                         )
-                        observed_depth = (
-                            0
-                            if a not in allele_depths[pos][clust]
-                            else allele_depths[pos][clust][a]
-                        )
+                        observed_depth = allele_depths[pos][clust].get(a, 0)
                         prob = binom.pmf(observed_depth, total_depth, allele_mult[a])
                         log_likelihood += log(prob) if prob > 0 else -float("inf")
 
@@ -226,8 +220,8 @@ def force_genotypes(
 
 
 def select_clusters(
-    allele_depths: List[Dict[ClusterId, AlleleDepth]], ploidy: int, max_gap: int
-) -> List[List[ClusterId]]:
+    allele_depths: list[dict[ClusterId, AlleleDepth]], ploidy: int, max_gap: int
+) -> list[list[ClusterId]]:
     """
     For every position, computes a list of relevant clusters for the threading
     algorithm. Relevant means, that the relative coverage is at least 1/8 of
@@ -260,10 +254,10 @@ def select_clusters(
             if cid in cov_map[pos]:
                 continue
             if any(
-                [cid in cov_map[pos + k + 1] for k in range(min(max_gap, len(cov_map) - pos - 1))]
+                cid in cov_map[pos + k + 1] for k in range(min(max_gap, len(cov_map) - pos - 1))
             ):
                 cov_map[pos].append(cid)
-                allele_depths[pos][cid] = dict()
+                allele_depths[pos][cid] = {}
 
     for sub in cov_map:
         sub.sort()
@@ -272,8 +266,8 @@ def select_clusters(
 
 
 def get_allele_depths(
-    allele_matrix: AlleleMatrix, clustering: List[Cluster], ploidy: int
-) -> Tuple[List[Dict[ClusterId, AlleleDepth]], List[Dict[ClusterId, List[Allele]]]]:
+    allele_matrix: AlleleMatrix, clustering: list[Cluster], ploidy: int
+) -> tuple[list[dict[ClusterId, AlleleDepth]], list[dict[ClusterId, list[Allele]]]]:
     """
     Returns a list, which for every position contains a list (representing the clusters) of dictionaries containing the allele depths.
     Additionally computes a consensus list per position per cluster, such that the first k elements represent the alleles of this
@@ -285,15 +279,15 @@ def get_allele_depths(
     num_vars = allele_matrix.getNumPositions()
 
     # stores allele depth per position and cluster
-    ad = [dict() for pos in range(num_vars)]
-    cons_lists = [dict() for pos in range(num_vars)]
+    ad = [{} for pos in range(num_vars)]
+    cons_lists = [{} for pos in range(num_vars)]
 
     # count alleles
     for c_id, cluster in enumerate(clustering):
         for read in cluster:
             for pos, allele in allele_matrix.getRead(read):
                 if c_id not in ad[pos]:
-                    ad[pos][c_id] = dict()
+                    ad[pos][c_id] = {}
                 if allele not in ad[pos][c_id]:
                     ad[pos][c_id][allele] = 0
                 ad[pos][c_id][allele] += 1

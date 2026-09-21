@@ -9,7 +9,6 @@ import logging
 from itertools import chain
 from multiprocessing import Pool
 from math import log
-from typing import List, Tuple
 from copy import copy
 
 from whatshap.polyphase import (
@@ -34,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 def solve_polyphase_instance(
     allele_matrix: AlleleMatrix,
-    genotypes: List[Genotype],
+    genotypes: list[Genotype],
     param: PolyphaseParameter,
     timers: StageTimer,
     partial_phasing: AlleleMatrix = None,
@@ -67,7 +66,7 @@ def solve_polyphase_instance(
         )
 
     # Process blocks independently
-    results: List[PolyphaseBlockResult] = []
+    results: list[PolyphaseBlockResult] = []
     processed_blocks = 0
     timers.stop("detecting_blocks")
 
@@ -140,7 +139,7 @@ def solve_polyphase_instance(
 
 def phase_single_block(
     allele_matrix: AlleleMatrix,
-    genotypes: List[Genotype],
+    genotypes: list[Genotype],
     prephasing: AlleleMatrix,
     param: PolyphaseParameter,
     timers: StageTimer,
@@ -165,8 +164,8 @@ def phase_single_block(
         # construct trivial solution for singleton blocks, by using the genotype as phasing
         g = genotypes[0]
         clusts = [[i for i, r in enumerate(allele_matrix) if r and r[0][1] == a] for a in g]
-        threads = [sorted(list(chain(*[[i] * g[a] for i, a in enumerate(g)])))]
-        haps = sorted(list(chain(*[[[a]] * g[a] for a in g])))
+        threads = [sorted(chain(*[[i] * g[a] for i, a in enumerate(g)]))]
+        haps = sorted(chain(*[[[a]] * g[a] for a in g]))
         return PolyphaseBlockResult(context.block_id, clusts, threads, haps, [])
 
     if context.recursion_level == 0:
@@ -232,7 +231,7 @@ def phase_single_block(
     for cid, thread_set, subm in sub_instances:
         assert len(subm) > 0
         snps = [allele_matrix.globalToLocal(gpos) for gpos in subm.getPositions()]
-        assert all([0 <= pos < allele_matrix.getNumPositions() for pos in snps])
+        assert all(0 <= pos < allele_matrix.getNumPositions() for pos in snps)
         subhaps = [[haplotypes[i][pos] for i in thread_set] for pos in snps]
         subgeno = [{a: h.count(a) for a in h} for h in subhaps]
         sub_param.ploidy = len(thread_set)
@@ -269,7 +268,7 @@ def phase_single_block(
 
 
 def aggregate_results(
-    results: List[PolyphaseBlockResult], ploidy: int, borders: List[int]
+    results: list[PolyphaseBlockResult], ploidy: int, borders: list[int]
 ) -> PolyphaseResult:
     """
     Collects all blockwise phasing results and aggregates them into one list for each type of
@@ -297,8 +296,8 @@ def aggregate_results(
 
 
 def compute_cut_positions(
-    breakpoints: List[PhaseBreakpoint], ploidy: int, block_cut_sensitivity: int
-) -> Tuple[List[int], List[List[int]]]:
+    breakpoints: list[PhaseBreakpoint], ploidy: int, block_cut_sensitivity: int
+) -> tuple[list[int], list[list[int]]]:
     """
     Computes the cut positions for phasing blocks, based on the computed breakpoints of the
     reordering stage and the requeted block cut sensitivity.

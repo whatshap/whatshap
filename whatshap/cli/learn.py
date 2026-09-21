@@ -30,8 +30,8 @@ def add_arguments(parser):
 
 
 def run_learn(reference, bam, vcf, k: int, window: int, output):
-    with VariantFile(vcf) as vcf:
-        variants = [(variant.pos, len(variant.ref)) for variant in vcf.fetch()]
+    with VariantFile(vcf) as vcffile:
+        variants = [(variant.pos, len(variant.ref)) for variant in vcffile.fetch()]
 
     with pyfaidx.Fasta(reference, as_raw=True) as fasta, pysam.AlignmentFile(bam) as bamfile:
         call = 0

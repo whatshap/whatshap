@@ -1,7 +1,7 @@
 from collections import defaultdict
 import gzip
 import logging
-from typing import Optional, DefaultDict, List
+from typing import Optional
 import os
 import stat
 import sys
@@ -111,7 +111,7 @@ class Region:
         return Region(chromosome, start, end)
 
 
-_warning_count: DefaultDict[str, int] = defaultdict(int)
+_warning_count: defaultdict[str, int] = defaultdict(int)
 
 
 def warn_once(logger, msg: str, *args) -> None:
@@ -143,7 +143,7 @@ class ChromosomeFilter:
     """
 
     def __init__(
-        self, included_chromosomes: Optional[List[str]], excluded_chromosomes: Optional[List[str]]
+        self, included_chromosomes: Optional[list[str]], excluded_chromosomes: Optional[list[str]]
     ):
         """
         Initialize the ChromosomeFilter.

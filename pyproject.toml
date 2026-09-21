@@ -27,6 +27,7 @@ dependencies = [
     "scipy",
     "xopen >= 1.2.0",
     "pulp >= 2",
+    "typing-extensions ~= 4.16.0",
 ]
 dynamic = ["version"]
 
@@ -95,8 +96,14 @@ build-verbosity = 1
 # test-command = ["cd {project} ; pytest tests/test_run_phase.py"]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 lint.ignore = [
-    "E501",  # line too long
-    "E741",  # Ambiguous variable name
+    "SIM115",  # Use a context manager for opening files
+    "DTZ005",  # `datetime.datetime.now()` called without a `tz` argument
+    "I001",    # Import block is un-sorted or un-formatted
+    "FA100",   # Add `from __future__ import annotations` to simplify `typing.Optional`
+    "PLR0133", # Two constants compared in a comparison, consider replacing `0 < 5`
+    "RUF023",  # `BiallelicVcfVariant.__slots__` is not sorted
+    "SIM102",  # Use a single `if` statement instead of nested `if` statements
+    "SIM114",  # Combine `if` branches using logical `or` operator
 ]

@@ -61,13 +61,11 @@ def string_to_readset_pedigree(s, w=None, scaling_quality=None):
 
 def matrix_to_readset(lines):
     rs = ReadSet()
-    index_tracker = 0
-    for line in lines:
+    for index_tracker, line in enumerate(lines, start=1):
         s = line.split()
         assert len(s) % 2 == 1, "Not in matrix format."
 
         index = int(s[0])
-        index_tracker += 1
         assert index == index_tracker, "Not in matrix format."
 
         read = Read(f"Read {index}", 50)
@@ -153,7 +151,7 @@ def brute_force_phase(read_set, all_heterozygous):
                     if variant.position == p:
                         variants[i].append(variant)
             c, assignment = column_cost(variants, possible_assignments)
-            print(f"    position: {p}, variants: {str(variants)} --> cost = {c}")
+            print(f"    position: {p}, variants: {variants!s} --> cost = {c}")
             cost += c
             haplotypes.append(assignment)
         print("  --> cost for this partitioning:", cost)

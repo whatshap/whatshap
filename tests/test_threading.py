@@ -189,7 +189,7 @@ def create_testinstance3():
 
 
 def test_relative_coverage():
-    readset, var_pos, clustering, _ = create_testinstance1()
+    readset, _var_pos, clustering, _ = create_testinstance1()
     allele_matrix = AlleleMatrix(readset)
     cov = get_coverage(allele_matrix, clustering)
     assert cov[0] == {0: 0.5, 1: 0.5}
@@ -218,10 +218,10 @@ def test_relative_coverage():
 
 def test_allele_depths():
     for f in [create_testinstance1, create_testinstance2, create_testinstance3]:
-        readset, var_pos, clustering, genotypes = f()
+        readset, _var_pos, clustering, genotypes = f()
         allele_matrix = AlleleMatrix(readset)
         ploidy = sum(genotypes[0].values())
-        ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=ploidy)
+        ad, _cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=ploidy)
         for pos in range(allele_matrix.getNumPositions()):
             for cid in range(len(clustering)):
                 for al in [0, 1, 2, 3]:
@@ -237,9 +237,9 @@ def test_allele_depths():
 
 
 def test_cluster_selection1():
-    readset, var_pos, clustering, genotypes = create_testinstance1()
+    readset, _var_pos, clustering, _genotypes = create_testinstance1()
     allele_matrix = AlleleMatrix(readset)
-    ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=3)
+    ad, _cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=3)
     c = select_clusters(ad, ploidy=3, max_gap=0)
     assert c[0] == [0, 1]
     assert c[1] == c[2] == c[3] == c[4] == c[5] == c[6] == [0, 1, 4]
@@ -254,18 +254,18 @@ def test_cluster_selection1():
 
 
 def test_cluster_selection2():
-    readset, var_pos, clustering, genotypes = create_testinstance2()
+    readset, _var_pos, clustering, _genotypes = create_testinstance2()
     allele_matrix = AlleleMatrix(readset)
-    ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=4)
+    ad, _cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=4)
     c = select_clusters(ad, ploidy=4, max_gap=0)
-    assert all([c[i] == [0, 1, 2, 3] for i in range(10)])
+    assert all(c[i] == [0, 1, 2, 3] for i in range(10))
     assert c == select_clusters(ad, ploidy=3, max_gap=1)
 
 
 def test_cluster_selection3():
-    readset, var_pos, clustering, genotypes = create_testinstance3()
+    readset, _var_pos, clustering, _genotypes = create_testinstance3()
     allele_matrix = AlleleMatrix(readset)
-    ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=2)
+    ad, _cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=2)
     c = select_clusters(ad, ploidy=2, max_gap=0)
     assert c[0] == c[3] == c[4] == c[5] == [0, 1, 2]
     assert c[1] == c[2] == [0, 2, 3]

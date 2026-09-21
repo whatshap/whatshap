@@ -11,7 +11,8 @@ from copy import deepcopy
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from os import PathLike
-from typing import List, Sequence, Dict, Set, Tuple, Iterable, Optional, Union, TextIO, Iterator
+from typing import Optional, Union, TextIO
+from collections.abc import Sequence, Iterable, Iterator
 
 from pysam import VariantFile, VariantHeader, VariantRecord
 from pysam.libcbcf import VariantRecordSample
@@ -57,7 +58,7 @@ class VcfInvalidAllele(VcfError):
 @dataclass
 class VariantCallPhase:
     block_id: int  # numeric id of the phased block
-    phase: Tuple[Optional[int], ...]  # alleles representing the phasing. (1, 0) is 1|0
+    phase: tuple[Optional[int], ...]  # alleles representing the phasing. (1, 0) is 1|0
     quality: Optional[int]
 
 
@@ -101,9 +102,7 @@ class BiallelicVcfVariant(VcfVariant):
         self.alternative_allele = alternative_allele
 
     def __repr__(self):
-        return "BiallelicVcfVariant({}, {!r}, {!r})".format(
-            self.position, self.reference_allele, self.alternative_allele
-        )
+        return f"BiallelicVcfVariant({self.position}, {self.reference_allele!r}, {self.alternative_allele!r})"
 
     def __hash__(self):
         return hash((self.position, self.reference_allele, self.alternative_allele))
@@ -174,9 +173,7 @@ class MultiallelicVcfVariant(VcfVariant):
         self.alternative_alleles = tuple(alternative_alleles)
 
     def __repr__(self):
-        return "MultiallelicVcfVariant({}, {!r}, {!r})".format(
-            self.position, self.reference_allele, self.alternative_alleles
-        )
+        return f"MultiallelicVcfVariant({self.position}, {self.reference_allele!r}, {self.alternative_alleles!r})"
 
     def __hash__(self):
         return hash((self.position, self.reference_allele, self.alternative_alleles))
@@ -243,9 +240,9 @@ class MultiallelicVcfVariant(VcfVariant):
 
 
 class GenotypeLikelihoods:
-    __slots__ = "log_prob_genotypes"
+    __slots__ = ("log_prob_genotypes",)
 
-    def __init__(self, log_prob_genotypes: List[float]):
+    def __init__(self, log_prob_genotypes: list[float]):
         """Likelihoods of all genotypes to be given as log10 of
         the original probability."""
         self.log_prob_genotypes = log_prob_genotypes
@@ -260,7 +257,7 @@ class GenotypeLikelihoods:
             return True
         return self.log_prob_genotypes == other.log_prob_genotypes
 
-    def log10_probs(self) -> List[float]:
+    def log10_probs(self) -> list[float]:
         return self.log_prob_genotypes
 
     def log10_prob_of(self, genotype_index: int) -> float:
@@ -295,14 +292,14 @@ class VariantTable:
     samples -- list of sample names
     """
 
-    def __init__(self, chromosome: str, samples: List[str]):
+    def __init__(self, chromosome: str, samples: list[str]):
         self.chromosome = chromosome
         self.samples = samples
-        self.genotypes: List[List[Genotype]] = [[] for _ in samples]
-        self.phases: List[List[Optional[VariantCallPhase]]] = [[] for _ in samples]
-        self.allele_depths: List[List[Optional[int]]] = [[] for _ in samples]
-        self.genotype_likelihoods: List[List[Optional[GenotypeLikelihoods]]] = [[] for _ in samples]
-        self.variants: List[VcfVariant] = []
+        self.genotypes: list[list[Genotype]] = [[] for _ in samples]
+        self.phases: list[list[Optional[VariantCallPhase]]] = [[] for _ in samples]
+        self.allele_depths: list[list[Optional[int]]] = [[] for _ in samples]
+        self.genotype_likelihoods: list[list[Optional[GenotypeLikelihoods]]] = [[] for _ in samples]
+        self.variants: list[VcfVariant] = []
         self._sample_to_index = {sample: index for index, sample in enumerate(samples)}
 
     def __len__(self) -> int:
@@ -334,27 +331,27 @@ class VariantTable:
         for i, depth in enumerate(allele_depths):
             self.allele_depths[i].append(depth)
 
-    def genotypes_of(self, sample: str) -> List[Genotype]:
+    def genotypes_of(self, sample: str) -> list[Genotype]:
         """Retrieve genotypes by sample name"""
         return self.genotypes[self._sample_to_index[sample]]
 
-    def set_genotypes_of(self, sample: str, genotypes: List[Genotype]) -> None:
+    def set_genotypes_of(self, sample: str, genotypes: list[Genotype]) -> None:
         """Set genotypes by sample name"""
         assert len(genotypes) == len(self.variants)
         self.genotypes[self._sample_to_index[sample]] = genotypes
 
-    def genotype_likelihoods_of(self, sample: str) -> List[Optional[GenotypeLikelihoods]]:
+    def genotype_likelihoods_of(self, sample: str) -> list[Optional[GenotypeLikelihoods]]:
         """Retrieve genotype likelihoods by sample name"""
         return self.genotype_likelihoods[self._sample_to_index[sample]]
 
     def set_genotype_likelihoods_of(
-        self, sample: str, genotype_likelihoods: List[Optional[GenotypeLikelihoods]]
+        self, sample: str, genotype_likelihoods: list[Optional[GenotypeLikelihoods]]
     ) -> None:
         """Set genotype likelihoods by sample name"""
         assert len(genotype_likelihoods) == len(self.variants)
         self.genotype_likelihoods[self._sample_to_index[sample]] = genotype_likelihoods
 
-    def phases_of(self, sample: str) -> List[Optional[VariantCallPhase]]:
+    def phases_of(self, sample: str) -> list[Optional[VariantCallPhase]]:
         """Retrieve phases by sample name"""
         return self.phases[self._sample_to_index[sample]]
 
@@ -364,9 +361,9 @@ class VariantTable:
             {i.block_id for i in self.phases[self._sample_to_index[sample]] if i is not None}
         )
 
-    def allele_depths_of(self, sample: str) -> List[Tuple[int, ...]]:
+    def allele_depths_of(self, sample: str) -> list[tuple[int, ...]]:
         """Retrieve allele depths by sample name"""
-        depths: List[Tuple[int, ...]] = []
+        depths: list[tuple[int, ...]] = []
         for depth_code in self.allele_depths[self._sample_to_index[sample]]:
             assert depth_code is not None
             c = depth_code
@@ -413,7 +410,7 @@ class VariantTable:
         to_discard = [i for i, v in enumerate(self.variants) if v.position not in positions]
         self.remove_rows_by_index(to_discard)
 
-    def create_subtable(self, samples: List[str]):
+    def create_subtable(self, samples: list[str]):
         """Keep only samples and rows given in positions, discard the rest and return as new table"""
         subtable = VariantTable(self.chromosome, samples)
         # overwrite class members with deep copies of selected samples
@@ -453,7 +450,7 @@ class VariantTable:
         except KeyError:
             return
         input_variant_set = set(input_variants)
-        read_map: Dict[int, List[Read]] = {}  # maps block_id to list of core.Read objects
+        read_map: dict[int, list[Read]] = {}  # maps block_id to list of core.Read objects
         assert (
             len(self.variants)
             == len(self.genotypes[sample_index])
@@ -575,7 +572,7 @@ class VcfReader:
         return self._process_single_chromosome(chromosome, records)
 
     def fetch_regions(
-        self, chromosome: str, regions: Iterable[Tuple[int, Optional[int]]]
+        self, chromosome: str, regions: Iterable[tuple[int, Optional[int]]]
     ) -> VariantTable:
         """
         Fetch records from a single chromosome that overlap the given regions.
@@ -669,9 +666,7 @@ class VcfReader:
 
             if (prev_position is not None) and (prev_position > pos):
                 raise VcfNotSortedError(
-                    "VCF not ordered: {}:{} appears before {}:{}".format(
-                        chromosome, prev_position + 1, chromosome, pos + 1
-                    )
+                    f"VCF not ordered: {chromosome}:{prev_position + 1} appears before {chromosome}:{pos + 1}"
                 )
 
             if prev_position == pos:
@@ -705,8 +700,7 @@ class VcfReader:
                             phase_ploidy = len(p.phase)
                             if phase_ploidy > get_max_genotype_ploidy():
                                 raise PloidyError(
-                                    "Ploidies higher than {} are not supported."
-                                    "".format(get_max_genotype_ploidy())
+                                    f"Ploidies higher than {get_max_genotype_ploidy()} are not supported."
                                 )
                             elif p is None or p.block_id is None or p.phase is None:
                                 pass
@@ -715,8 +709,8 @@ class VcfReader:
                             elif phase_ploidy != self.ploidy:
                                 print(f"phase= {phase}")
                                 raise PloidyError(
-                                    "Phasing information contains inconsistent ploidy ({} and "
-                                    "{})".format(self.ploidy, phase_ploidy)
+                                    f"Phasing information contains inconsistent ploidy ({self.ploidy} and "
+                                    f"{phase_ploidy})"
                                 )
                     phases.append(phase)
             else:
@@ -724,7 +718,7 @@ class VcfReader:
 
             # Read genotype likelihoods, if requested
             if self._genotype_likelihoods:
-                genotype_likelihoods: List[Optional[GenotypeLikelihoods]] = []
+                genotype_likelihoods: list[Optional[GenotypeLikelihoods]] = []
                 for call in record.samples.values():
                     GL = call.get("GL", None)
                     PL = call.get("PL", None)
@@ -748,14 +742,13 @@ class VcfReader:
                     geno_ploidy = len(geno)
                     if geno_ploidy > get_max_genotype_ploidy():
                         raise PloidyError(
-                            "Ploidies higher than {} are not supported."
-                            "".format(get_max_genotype_ploidy())
+                            f"Ploidies higher than {get_max_genotype_ploidy()} are not supported."
                         )
                     elif self.ploidy is None:
                         self.ploidy = geno_ploidy
                     elif geno_ploidy != self.ploidy:
                         raise PloidyError(
-                            "Inconsistent ploidy ({} and " "{})".format(self.ploidy, geno_ploidy)
+                            f"Inconsistent ploidy ({self.ploidy} and " f"{geno_ploidy})"
                         )
 
                 genotypes = [genotype_code(geno_list) for geno_list in genotype_lists]
@@ -764,7 +757,7 @@ class VcfReader:
                 phases = [None] * len(self.samples)
 
             if self.allele_depth:
-                depths: List[Optional[int]] = [
+                depths: list[Optional[int]] = [
                     self._extract_AD_depth(call) for call in record.samples.values()
                 ]
             else:
@@ -816,14 +809,8 @@ class VcfHeader:
 
     def line(self):
         return (
-            "##{format_or_info}=<ID={id},Number={number},Type={typ},"
-            'Description="{description}">'.format(
-                format_or_info=self.format_or_info,
-                id=self.id,
-                number=self.number,
-                typ=self.typ,
-                description=self.description,
-            )
+            f"##{self.format_or_info}=<ID={self.id},Number={self.number},Type={self.typ},"
+            f'Description="{self.description}">'
         )
 
 
@@ -863,7 +850,7 @@ PREDEFINED_INFOS = {
 }
 
 
-def augment_header(header: VariantHeader, contigs: List[str], formats: List[str], infos: List[str]):
+def augment_header(header: VariantHeader, contigs: list[str], formats: list[str], infos: list[str]):
     """
     Add contigs, formats and infos to a VariantHeader.
 
@@ -893,7 +880,7 @@ def augment_header(header: VariantHeader, contigs: List[str], formats: List[str]
         header.add_line(h.line())
 
 
-def missing_headers(path: str) -> Tuple[List[str], List[str], List[str]]:
+def missing_headers(path: str) -> tuple[list[str], list[str], list[str]]:
     """
     Find contigs, FORMATs and INFOs that are used within the body of a VCF file, but are
     not listed in the header or that have an incorrect type.
@@ -922,18 +909,18 @@ def missing_headers(path: str) -> Tuple[List[str], List[str], List[str]]:
                 if fmt == "PS" and v.type != h.typ:
                     raise VcfError(
                         "The input VCF/BCF contains phase set ('PS') tags that are of the"
-                        " non-standard type '{}' instead of 'Integer'. WhatsHap cannot"
+                        f" non-standard type '{v.type}' instead of 'Integer'. WhatsHap cannot"
                         " overwrite these as it could produce inconsistent files."
                         " To proceed, you can use 'whatshap unphase' to remove phasing"
-                        " information from the input file".format(v.type)
+                        " information from the input file"
                     )
                 incorrect_formats.append(fmt)
 
         # Iterate through entire file and check which contigs, formats and
         # info fields are used
-        contigs = dict()  # contigs encountered, in the proper order
-        formats = dict()  # FORMATs encountered, in the proper order
-        seen_infos: Set[str] = set()  # INFOs encountered
+        contigs = {}  # contigs encountered, in the proper order
+        formats = {}  # FORMATs encountered, in the proper order
+        seen_infos: set[str] = set()  # INFOs encountered
 
         try:
             for record in variant_file:
@@ -1027,7 +1014,7 @@ class VcfAugmenter(ABC):
         self.close()
 
     @property
-    def samples(self) -> List[str]:
+    def samples(self) -> list[str]:
         return list(self._reader.header.samples)
 
     def _record_modifier(self, chromosome: str):
@@ -1112,7 +1099,7 @@ class PhasedVcfWriter(VcfAugmenter):
         self,
         call: VariantRecordSample,
         component: int,
-        phase: Tuple[int, ...],
+        phase: tuple[int, ...],
         haploid_component: Optional[Iterable[int]] = None,
     ):
         """
@@ -1129,7 +1116,7 @@ class PhasedVcfWriter(VcfAugmenter):
         self,
         call: VariantRecordSample,
         component: int,
-        phase: Tuple[int, ...],
+        phase: tuple[int, ...],
         haploid_component: Optional[Iterable[int]] = None,
     ):
         """
@@ -1147,8 +1134,8 @@ class PhasedVcfWriter(VcfAugmenter):
     def write(
         self,
         chromosome: str,
-        sample_superreads: Dict[str, ReadSet],
-        sample_components: Dict,
+        sample_superreads: dict[str, ReadSet],
+        sample_components: dict,
         sample_haploid_components=None,
     ):
         """
@@ -1170,8 +1157,8 @@ class PhasedVcfWriter(VcfAugmenter):
         """
         genotype_changes = []
         # TODO
-        sample_phases: Dict[str, Dict] = dict()
-        sample_genotypes: Dict[str, Dict] = dict()
+        sample_phases: dict[str, dict] = {}
+        sample_genotypes: dict[str, dict] = {}
         for sample, superreads in sample_superreads.items():
             sample_phases[sample] = {}
             sample_genotypes[sample] = {}
@@ -1229,7 +1216,7 @@ class PhasedVcfWriter(VcfAugmenter):
                 ):
                     logger.warning(
                         "Ignoring existing phasing information "
-                        "found in input VCF ({} tag exists).".format(self.tag)
+                        f"found in input VCF ({self.tag} tag exists)."
                     )
                     self._phase_tag_found_warned = True
 
@@ -1278,7 +1265,7 @@ class PhasedVcfWriter(VcfAugmenter):
                     call["GT"] = sorted(call["GT"])
 
 
-def genotype_code(gt: Optional[Tuple[Optional[int], ...]]) -> Genotype:
+def genotype_code(gt: Optional[tuple[Optional[int], ...]]) -> Genotype:
     """Return genotype encoded as PyVCF-compatible number"""
     if gt is None:
         result = Genotype([])
@@ -1333,7 +1320,7 @@ class GenotypeVcfWriter(VcfAugmenter):
         """
 
         # map positions to index
-        genotyped_variants = dict()
+        genotyped_variants = {}
         for i in range(len(variant_table)):
             genotyped_variants[variant_table.variants[i].position] = i
 

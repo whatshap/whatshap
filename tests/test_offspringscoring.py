@@ -14,8 +14,8 @@ def old_likelihood_prior_function(ploidy):
     # auxiliary table for prior probailities
     max_alts = ploidy // 2  # max. alleles inherited from one parent
     prior_single = [[0.0] * (max_alts + 1) for _ in range(ploidy + 1)]
-    for num_alts in range(0, ploidy + 1):
-        for num_drawn_alts in range(0, max_alts + 1):
+    for num_alts in range(ploidy + 1):
+        for num_drawn_alts in range(max_alts + 1):
             if ploidy - num_alts >= max_alts - num_drawn_alts and num_alts >= num_drawn_alts:
                 prior_single[num_alts][num_drawn_alts] = (
                     binom_coeff(ploidy - num_alts, max_alts - num_drawn_alts)
@@ -24,8 +24,8 @@ def old_likelihood_prior_function(ploidy):
                 )
 
     prior_dual = [[[0.0] * (ploidy + 1) for _ in range(ploidy + 1)] for _ in range(ploidy + 1)]
-    for num_alts_parent in range(0, ploidy + 1):
-        for num_alts_coparent in range(0, ploidy + 1):
+    for num_alts_parent in range(ploidy + 1):
+        for num_alts_coparent in range(ploidy + 1):
             for i in range(max_alts + 1):
                 for j in range(max_alts + 1):
                     num_alts_offspring = i + j
@@ -47,25 +47,29 @@ def test_gt_likelihood_priors():
 
 
 def test_correct_variant_types():
-    table = list(
-        VcfReader(
-            "tests/data/polyphasegenetic.test.parents.vcf",
-            only_snvs=False,
-            genotype_likelihoods=False,
-            ploidy=4,
-            mav=True,
+    table = next(
+        iter(
+            VcfReader(
+                "tests/data/polyphasegenetic.test.parents.vcf",
+                only_snvs=False,
+                genotype_likelihoods=False,
+                ploidy=4,
+                mav=True,
+            )
         )
-    )[0]
-    ptable = list(
-        VcfReader(
-            "tests/data/polyphasegenetic.test.progeny.vcf.gz",
-            only_snvs=False,
-            genotype_likelihoods=False,
-            ploidy=4,
-            mav=True,
-            allele_depth=True,
+    )
+    ptable = next(
+        iter(
+            VcfReader(
+                "tests/data/polyphasegenetic.test.progeny.vcf.gz",
+                only_snvs=False,
+                genotype_likelihoods=False,
+                ploidy=4,
+                mav=True,
+                allele_depth=True,
+            )
         )
-    )[0]
+    )
 
     param = PolyphaseGeneticParameter(4, 20, 0.06, 0, 0, True, True, False, "")
 
@@ -86,31 +90,35 @@ def test_correct_variant_types():
 
 
 def test_compute_gt_likelihoods():
-    table = list(
-        VcfReader(
-            "tests/data/polyphasegenetic.test.parents.vcf",
-            only_snvs=False,
-            genotype_likelihoods=False,
-            ploidy=4,
-            mav=True,
+    table = next(
+        iter(
+            VcfReader(
+                "tests/data/polyphasegenetic.test.parents.vcf",
+                only_snvs=False,
+                genotype_likelihoods=False,
+                ploidy=4,
+                mav=True,
+            )
         )
-    )[0]
-    ptable = list(
-        VcfReader(
-            "tests/data/polyphasegenetic.test.progeny.vcf.gz",
-            only_snvs=False,
-            genotype_likelihoods=False,
-            ploidy=4,
-            mav=True,
-            allele_depth=True,
+    )
+    ptable = next(
+        iter(
+            VcfReader(
+                "tests/data/polyphasegenetic.test.progeny.vcf.gz",
+                only_snvs=False,
+                genotype_likelihoods=False,
+                ploidy=4,
+                mav=True,
+                allele_depth=True,
+            )
         )
-    )[0]
+    )
 
     param = PolyphaseGeneticParameter(4, 20, 0.06, 0, 0, True, True, False, "")
     vi = compute_phasable_variants(table, "Parent_A", "Parent_B", param)
     priors = compute_gt_likelihood_priors(param.ploidy)
 
-    genpos_to_progenypos = dict()
+    genpos_to_progenypos = {}
     for i in range(len(ptable)):
         genpos = ptable.variants[i].position
         if genpos:

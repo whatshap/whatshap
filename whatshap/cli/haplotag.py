@@ -13,7 +13,8 @@ from enum import Enum
 import pysam
 import hashlib
 from collections import defaultdict
-from typing import List, Optional, Union, Dict, Tuple, FrozenSet, Sequence, TextIO
+from typing import Optional, Union, TextIO
+from collections.abc import Sequence
 
 from xopen import xopen
 
@@ -137,9 +138,9 @@ def get_variant_information(variant_table: VariantTable, sample: str):
     and variants is a list of all non-homozygous variants.
     """
     genotypes = variant_table.genotypes_of(sample)
-    phases: List[Optional[VariantCallPhase]] = variant_table.phases_of(sample)
+    phases: list[Optional[VariantCallPhase]] = variant_table.phases_of(sample)
 
-    vpos_to_phase_info = dict()
+    vpos_to_phase_info = {}
     variants = []
     for v, gt, phase in zip(variant_table.variants, genotypes, phases):
         if phase is None or phase.block_id is None:
@@ -189,11 +190,11 @@ def attempt_add_phase_information(
     # that means that we wanted to tag supplementary alignment,
     # and first iteration of haplotagging had a default COPY-if-tagging strategy
     supplementary_strategy: SupplementaryHaplotaggingStrategy = SupplementaryHaplotaggingStrategy.COPY_PRIMARY,
-    primary_info_by_repr: Optional[Dict["ReadAlignmentRepresentation", "PrimaryInfo"]] = None,
+    primary_info_by_repr: Optional[dict["ReadAlignmentRepresentation", "PrimaryInfo"]] = None,
     supplementary_strand_match: bool = True,
     supplementary_distance_threshold: int = 100_000,
 ):
-    primary_info_by_repr: Dict["ReadAlignmentRepresentation", "PrimaryInfo"] = (
+    primary_info_by_repr: dict[ReadAlignmentRepresentation, PrimaryInfo] = (
         primary_info_by_repr or {}
     )
     is_tagged = 0
@@ -271,7 +272,7 @@ def attempt_add_phase_information(
 
 
 def load_chromosome_variants(
-    vcf_reader: VcfReader, chromosome: str, regions: Sequence[Tuple[int, Optional[int]]]
+    vcf_reader: VcfReader, chromosome: str, regions: Sequence[tuple[int, Optional[int]]]
 ) -> VariantTable:
     try:
         logger.debug(f"Loading variants from {len(regions)} distinct region(s)")
@@ -281,7 +282,7 @@ def load_chromosome_variants(
         # not entirely clear to me why this could raise
         # an OSError at this point?
         logger.error(str(err))
-        raise err
+        raise
     return variant_table
 
 
@@ -406,7 +407,7 @@ def prepare_haplotag_information(
             scores_list = list(enumerate(scores))
             scores_list.sort(key=lambda t: t[1], reverse=True)
             first_ht, first_score = scores_list[0]
-            second_ht, second_score = scores_list[1]
+            _second_ht, second_score = scores_list[1]
             quality = first_score - second_score
 
             if quality == 0:
@@ -419,17 +420,15 @@ def prepare_haplotag_information(
                 read_repr = read_representation(r, as_primary=False)
                 read_to_haplotype[read_repr] = (first_ht, quality, phaseset)
                 logger.debug(
-                    "Assigned read {} to haplotype {} with a "
-                    "quality of {} based on {} covered variants".format(
-                        r.name, first_ht, quality, len(r)
-                    )
+                    f"Assigned read {r.name} to haplotype {first_ht} with a "
+                    f"quality of {quality} based on {len(r)} covered variants"
                 )
     return BX_tag_to_haplotype, read_to_haplotype, n_multiple_phase_sets, primary_info_by_repr
 
 
 def normalize_user_regions(
-    user_regions: Optional[Sequence[str]], bam_references: List[str]
-) -> Dict[str, List[Tuple[int, Optional[int]]]]:
+    user_regions: Optional[Sequence[str]], bam_references: list[str]
+) -> dict[str, list[tuple[int, Optional[int]]]]:
     """
     Process and accept user input of the following forms:
 
@@ -448,7 +447,7 @@ def normalize_user_regions(
     Returns:
         dict of lists containing normalized regions per chromosome
     """
-    regions: Dict[str, List[Tuple[int, Optional[int]]]] = defaultdict(list)
+    regions: dict[str, list[tuple[int, Optional[int]]]] = defaultdict(list)
     if user_regions is None:
         for reference in bam_references:
             regions[reference].append((0, None))
@@ -495,7 +494,7 @@ def compute_variant_file_samples_to_use(vcf_samples, user_given_samples, ignore_
             raise VcfError(
                 "The following samples were specified via the "
                 '"--sample" parameter, but are not part of the '
-                "input VCF: {}".format(sorted(missing_samples))
+                f"input VCF: {sorted(missing_samples)}"
             )
 
         samples_to_use = samples_in_vcf.intersection(given_samples)
@@ -513,7 +512,7 @@ def compute_shared_samples(bam_reader, ignore_read_groups, vcf_samples):
     Return final samples to use for haplo-tagging
     """
     read_groups = bam_reader.header.get("RG", [])
-    bam_samples = {(rg["SM"] if "SM" in rg else "") for rg in read_groups}
+    bam_samples = {(rg.get("SM", "")) for rg in read_groups}
 
     logger.info(f"Found {len(bam_samples)} sample(s) in BAM file")
     logger.debug(
@@ -533,7 +532,7 @@ def compute_shared_samples(bam_reader, ignore_read_groups, vcf_samples):
             logger.warning(
                 "Ignoring the following sample(s) for haplo-tagging "
                 "because they are not part of the VCF or "
-                'were not requested via "--sample": {}'.format(missing_samples)
+                f'were not requested via "--sample": {missing_samples}'
             )
         else:
             # situation is ok
@@ -575,19 +574,19 @@ def open_output_alignment_file(aln_output, reference, vcf_md5, bam_header, threa
         bam_header["PG"] = [PG_entry]
     if aln_output is None:
         aln_output = "-"
-        kwargs = dict()
+        kwargs = {}
     elif str(aln_output).endswith(".cram"):  # FIXME hard-coded value
         if reference is None:
             raise ValueError(
                 'Writing CRAM output requires FASTA reference file given via "--reference"'
             )
-        kwargs = dict(mode="wc", reference_filename=reference)
+        kwargs = {"mode": "wc", "reference_filename": reference}
     else:
         # Write BAM, disable compression when piping
         if aln_output is sys.stdout and not stdout_is_regular_file():
-            kwargs = dict(mode="wb0", threads=threads)
+            kwargs = {"mode": "wb0", "threads": threads}
         else:
-            kwargs = dict(mode="wb", threads=threads)
+            kwargs = {"mode": "wb", "threads": threads}
     try:
         bam_writer = pysam.AlignmentFile(
             aln_output, header=pysam.AlignmentHeader.from_dict(bam_header), **kwargs
@@ -646,7 +645,7 @@ def ignore_read(alignment, include_supplementary: bool):
     return ignore
 
 
-def contigs_with_alignments(af: pysam.AlignmentFile) -> FrozenSet[str]:
+def contigs_with_alignments(af: pysam.AlignmentFile) -> frozenset[str]:
     has_alignments = []
     for contig in af.references:
         for _ in af.fetch(contig=contig):
@@ -710,6 +709,7 @@ def run_haplotag(
         user_regions = normalize_user_regions(regions, bam_reader.references)
 
         include_unmapped = regions is None
+        del regions
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
                 [alignment_file],

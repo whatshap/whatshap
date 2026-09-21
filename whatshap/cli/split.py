@@ -89,15 +89,11 @@ def select_reads_in_largest_phased_blocks(block_sizes, block_to_readnames):
     for chromosome, block_counts in block_sizes.items():
         block_name, reads_in_block = block_counts.most_common(1)[0]
         logger.info(
-            "Chromosome: {} - Phaseset: {} - Tagged reads: {}".format(
-                chromosome, block_name, reads_in_block
-            )
+            f"Chromosome: {chromosome} - Phaseset: {block_name} - Tagged reads: {reads_in_block}"
         )
         selected_reads = selected_reads.union(set(block_to_readnames[(chromosome, block_name)]))
     logger.info(
-        "Total number of haplo-tagged reads in all largest phased blocks: {}".format(
-            len(selected_reads)
-        )
+        f"Total number of haplo-tagged reads in all largest phased blocks: {len(selected_reads)}"
     )
     return selected_reads
 
@@ -243,7 +239,7 @@ def check_haplotag_list_information(haplotag_list, exit_stack):
         except ValueError:
             raise ValueError(
                 "First line of haplotag list file does not have "
-                "at least 2 columns, or it is not tab-separated: {}".format(first_line)
+                f"at least 2 columns, or it is not tab-separated: {first_line}"
             )
     else:
         has_chrom_info = True
@@ -251,7 +247,7 @@ def check_haplotag_list_information(haplotag_list, exit_stack):
 
 
 def initialize_io_files(reads_file, outputs, exit_stack):
-    potential_fastq_extensions = ["fastq", "fastq.gz", "fastq.gzip" "fq", "fq.gz" "fq.gzip"]
+    potential_fastq_extensions = ["fastq", "fastq.gz", "fastq.gzip", "fq", "fq.gz", "fq.gzip"]
     input_format = detect_file_format(reads_file)
     if input_format is None:
         # TODO: this is a heuristic, need to extend utils::detect_file_format

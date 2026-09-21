@@ -88,7 +88,7 @@ def test_phase_empty_trio():
     pedigree.add_individual("individual2", [])
     pedigree.add_relationship("individual0", "individual1", "individual2")
     dp_table = PedigreeDPTable(rs, recombcost, pedigree)
-    ((superreadsm, superreadsf, superreadsc), transmission_vector) = dp_table.get_super_reads()
+    ((_superreadsm, _superreadsf, _superreadsc), _transmission_vector) = dp_table.get_super_reads()
 
 
 def test_phase_trio1():

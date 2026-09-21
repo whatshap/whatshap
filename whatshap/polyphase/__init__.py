@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from queue import Queue
-from typing import List, Dict, Iterator
+from collections.abc import Iterator
 
 from pulp import listSolvers, getSolver
 from whatshap.core import ReadSet
@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 
 Position = int
 Allele = int
-Genotype = Dict[Allele, int]
-AlleleDepth = Dict[Allele, int]
-Haplotype = List[Allele]
+Genotype = dict[Allele, int]
+AlleleDepth = dict[Allele, int]
+Haplotype = list[Allele]
 ReadId = int
-Cluster = List[ReadId]
-Clustering = List[Cluster]
+Cluster = list[ReadId]
+Clustering = list[Cluster]
 ClusterId = int
-Threading = List[List[ClusterId]]
+Threading = list[list[ClusterId]]
 
 
 class SolverError(Exception):
@@ -58,7 +58,7 @@ class BlockContext:
 
 
 class PhaseBreakpoint:
-    def __init__(self, position: int, haplotypes: List[int], confidence: float):
+    def __init__(self, position: int, haplotypes: list[int], confidence: float):
         self.position = position
         self.haplotypes = sorted(haplotypes[:])
         self.confidence = confidence
@@ -67,23 +67,23 @@ class PhaseBreakpoint:
 @dataclass
 class PolyphaseBlockResult:
     block_id: int
-    clustering: List[List[int]]
-    threads: List[List[int]]
-    haplotypes: List[List[int]]
-    breakpoints: List[PhaseBreakpoint]
+    clustering: list[list[int]]
+    threads: list[list[int]]
+    haplotypes: list[list[int]]
+    breakpoints: list[PhaseBreakpoint]
 
 
 @dataclass
 class PolyphaseResult:
-    clustering: List[List[int]]
-    threads: List[List[int]]
-    haplotypes: List[int]
-    breakpoints: List[PhaseBreakpoint]
+    clustering: list[list[int]]
+    threads: list[list[int]]
+    haplotypes: list[int]
+    breakpoints: list[PhaseBreakpoint]
 
 
 def get_coverage(
-    allele_matrix: AlleleMatrix, clustering: List[Cluster]
-) -> List[Dict[ClusterId, float]]:
+    allele_matrix: AlleleMatrix, clustering: list[Cluster]
+) -> list[dict[ClusterId, float]]:
     """
     Returns a list, which for every position contains a dictionary, mapping a cluster id to
     a relative coverage on this position.
@@ -208,7 +208,7 @@ def create_genotype_list(variant_table: VariantTable, sample: str):
     all_genotypes = variant_table.genotypes_of(sample)
     genotype_list = []
     for pos in range(len(all_genotypes)):
-        allele_count = dict()
+        allele_count = {}
         for allele in all_genotypes[pos].as_vector():
             if allele not in allele_count:
                 allele_count[allele] = 0
@@ -226,8 +226,8 @@ def extract_partial_phasing(variant_table: VariantTable, sample: str, ploidy: in
         am = AlleleMatrix(readset)
         assert len(am) % ploidy == 0
         for i in range(0, len(am), ploidy):
-            assert all([am.getFirstPos(i) == am.getFirstPos(i + j) for j in range(1, ploidy)])
-            assert all([am.getLastPos(i) == am.getLastPos(i + j) for j in range(1, ploidy)])
+            assert all(am.getFirstPos(i) == am.getFirstPos(i + j) for j in range(1, ploidy))
+            assert all(am.getLastPos(i) == am.getLastPos(i + j) for j in range(1, ploidy))
         return am
     else:
         return None

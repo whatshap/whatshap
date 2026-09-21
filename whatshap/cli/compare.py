@@ -8,12 +8,13 @@ from collections import defaultdict
 from contextlib import ExitStack
 import dataclasses
 from itertools import chain, permutations
-from typing import Set, List, Optional, DefaultDict, Dict
+from typing import Optional
 
 from whatshap.vcf import VcfReader, VcfVariant, VariantTable, PloidyError
 from whatshap.core import Genotype
 from whatshap.polyphase.solver import SwitchFlipCalculator
 from whatshap.cli import CommandLineError
+from typing_extensions import Self
 
 
 logger = logging.getLogger(__name__)
@@ -92,7 +93,7 @@ class PhasingErrors:
         self.switch_flips = SwitchFlips() if switch_flips is None else switch_flips
         self.diff_genotypes = diff_genotypes
 
-    def __iadd__(self, other: object) -> "PhasingErrors":
+    def __iadd__(self, other: object) -> Self:
         if not isinstance(other, PhasingErrors):
             raise TypeError("Can only add to PhasingErrors")
         self.switches += other.switches
@@ -102,9 +103,7 @@ class PhasingErrors:
         return self
 
     def __repr__(self):
-        return "PhasingErrors(switches={}, hamming={}, switch_flips={}, diff_genotypes={})".format(
-            self.switches, self.hamming, self.switch_flips, self.diff_genotypes
-        )
+        return f"PhasingErrors(switches={self.switches}, hamming={self.hamming}, switch_flips={self.switch_flips}, diff_genotypes={self.diff_genotypes})"
 
 
 def complement(s):
@@ -211,7 +210,7 @@ def compute_switch_flips_poly(phasing0, phasing1, switch_cost=1, flip_cost=1):
     Computes the combined number of switches and flips, which are needed to transform phasing 0 into
     phasing 1 or vice versa.
     """
-    (result, switches_in_column, flips_in_column, poswise_config) = compute_switch_flips_poly_bt(
+    (result, _switches_in_column, _flips_in_column, _poswise_config) = compute_switch_flips_poly_bt(
         phasing0, phasing1, switch_cost=switch_cost, flip_cost=flip_cost
     )
     return result
@@ -234,7 +233,7 @@ def compute_switch_flips_poly_bt(
     ploidy = len(phasing0)
     if ploidy == 0:
         return SwitchFlips(), None, None, None
-    for i in range(0, len(phasing1)):
+    for i in range(len(phasing1)):
         if len(phasing1[i]) != num_pos:
             logger.error(
                 "Inconsistent input for phasing. Haplotypes have different lengths "
@@ -326,7 +325,7 @@ def safefraction(nominator, denominator):
 
 
 class BedCreator:
-    def __init__(self, chromosome: str, dataset_names: List[str]):
+    def __init__(self, chromosome: str, dataset_names: list[str]):
         self._chromosome = chromosome
         self._annotation = "{}<-->{}".format(*dataset_names)
 
@@ -407,8 +406,8 @@ class BlockStats:
 
 
 def collect_common_variants(
-    variant_tables: List[VariantTable], sample_names: List[str]
-) -> Set[VcfVariant]:
+    variant_tables: list[VariantTable], sample_names: list[str]
+) -> set[VcfVariant]:
     common_variants = None
     for variant_table, sample in zip(variant_tables, sample_names):
         het_variants = [
@@ -425,9 +424,9 @@ def collect_common_variants(
 
 
 def compare(
-    variant_tables: List[VariantTable],
-    sample_names: List[str],
-    dataset_names: List[str],
+    variant_tables: list[VariantTable],
+    sample_names: list[str],
+    dataset_names: list[str],
     ploidy: int,
 ):
     """
@@ -453,7 +452,7 @@ def compare(
         phases.append(p)
 
     # blocks[variant_table_index][block_id] is a list of indices into common_variants
-    blocks: List[DefaultDict[int, List[int]]] = [defaultdict(list) for _ in variant_tables]
+    blocks: list[defaultdict[int, list[int]]] = [defaultdict(list) for _ in variant_tables]
     block_intersection = defaultdict(list)
     for variant_index in range(len(common_variants)):
         any_none = False
@@ -663,12 +662,12 @@ def compare_multiway(block_intersection, dataset_names, phases):
 
 
 def compute_block_stats(
-    blocks: List[DefaultDict[int, List[int]]], sorted_variants: List[VcfVariant]
+    blocks: list[defaultdict[int, list[int]]], sorted_variants: list[VcfVariant]
 ):
     block_stats = []
     for block in blocks:
         l = []
-        for block_id, variant_indices in block.items():
+        for variant_indices in block.values():
             if len(variant_indices) < 2:
                 continue
             span = (
@@ -711,7 +710,7 @@ def create_blocksize_histogram(filename, block_stats, names, use_weights=False):
             common_bins = numpy.logspace(0, math.ceil(math.log10(max_value)), 50)
             for l, name, color in zip(block_stats, names, colors):
                 x = [what(stats) for stats in l]
-                n, bins, patches = pyplot.hist(
+                pyplot.hist(
                     x,
                     bins=common_bins,
                     alpha=0.6,
@@ -731,7 +730,7 @@ def create_blocksize_histogram(filename, block_stats, names, use_weights=False):
             pyplot.figure(figsize=(10, 8))
             common_bins = numpy.logspace(0, math.ceil(math.log10(max_value)), 25)
             x = [[what(stats) for stats in l] for l in block_stats]
-            n, bins, patches = pyplot.hist(
+            _n, _bins, _patches = pyplot.hist(
                 x,
                 bins=common_bins,
                 alpha=0.6,
@@ -778,6 +777,7 @@ def run_compare(
     sample_names = get_sample_names(
         vcf_readers, requested_sample=sample, ignore_name=ignore_sample_name
     )
+    del sample
 
     with ExitStack() as stack:
         tsv_pairwise_file = tsv_multiway_file = longest_block_tsv_file = switch_error_bedfile = None
@@ -904,11 +904,7 @@ def run_compare(
 
             for i in range(len(vcfs)):
                 for j in range(i + 1, len(vcfs)):
-                    print(
-                        "PAIRWISE COMPARISON: {} <--> {}:".format(
-                            dataset_names[i], dataset_names[j]
-                        )
-                    )
+                    print(f"PAIRWISE COMPARISON: {dataset_names[i]} <--> {dataset_names[j]}:")
                     (
                         results,
                         bed_records,
@@ -1001,7 +997,7 @@ def run_compare(
             )
 
 
-def get_common_chromosomes(vcfs: List[Dict[str, VariantTable]]) -> List[str]:
+def get_common_chromosomes(vcfs: list[dict[str, VariantTable]]) -> list[str]:
     common = None
     for chrom_variant_table_map in vcfs:
         chromosomes = chrom_variant_table_map.keys()
@@ -1015,12 +1011,12 @@ def get_common_chromosomes(vcfs: List[Dict[str, VariantTable]]) -> List[str]:
 
 
 def get_variant_tables(
-    vcf_readers: List[VcfReader], vcf_filenames: List[str]
-) -> List[Dict[str, VariantTable]]:
+    vcf_readers: list[VcfReader], vcf_filenames: list[str]
+) -> list[dict[str, VariantTable]]:
     vcfs = []
     for reader, filename in zip(vcf_readers, vcf_filenames):
         # create dict mapping chromosome names to VariantTables
-        m = dict()
+        m = {}
         logger.info("Reading phasing from %r", filename)
         try:
             for variant_table in reader:
@@ -1032,8 +1028,8 @@ def get_variant_tables(
 
 
 def get_sample_names(
-    vcf_readers: List[VcfReader], requested_sample: Optional[str], ignore_name: bool = False
-) -> List[str]:
+    vcf_readers: list[VcfReader], requested_sample: Optional[str], ignore_name: bool = False
+) -> list[str]:
     first_samples = []
     sample_intersection = None
     for vcf_reader in vcf_readers:
@@ -1044,9 +1040,7 @@ def get_sample_names(
 
         if ignore_name and len(vcf_reader.samples) > 1:
             raise CommandLineError(
-                "File '{file}' contains multiple samples, option --ignore-sample-name not available.".format(
-                    file=vcf_reader.path
-                )
+                f"File '{vcf_reader.path}' contains multiple samples, option --ignore-sample-name not available."
             )
         first_samples.append(vcf_reader.samples[0])
     assert sample_intersection is not None
@@ -1054,9 +1048,7 @@ def get_sample_names(
         sample_intersection.intersection_update([requested_sample])
         if len(sample_intersection) == 0:
             raise CommandLineError(
-                "Sample {!r} requested on command-line not found in all VCFs".format(
-                    requested_sample
-                )
+                f"Sample {requested_sample!r} requested on command-line not found in all VCFs"
             )
         sample_names = [requested_sample] * len(vcf_readers)
     elif ignore_name:
@@ -1065,7 +1057,7 @@ def get_sample_names(
         if len(sample_intersection) == 0:
             raise CommandLineError("None of the samples is present in all VCFs")
         elif len(sample_intersection) == 1:
-            sample_names = [list(sample_intersection)[0]] * len(vcf_readers)
+            sample_names = [next(iter(sample_intersection))] * len(vcf_readers)
         else:
             raise CommandLineError(
                 "More than one sample is present in all VCFs, please use"

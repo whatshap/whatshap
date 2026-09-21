@@ -7,7 +7,8 @@ from collections import defaultdict
 from contextlib import ExitStack
 import dataclasses
 from statistics import median
-from typing import List, Tuple, Optional, Dict, Sequence, Iterator
+from typing import Optional
+from collections.abc import Sequence, Iterator
 from math import isnan
 
 from ..vcf import VcfReader, VcfVariant, VariantTable
@@ -53,10 +54,8 @@ class PhasedBlock:
             self.leftmost_variant = variant
             self.rightmost_variant = variant
         else:
-            if variant < self.leftmost_variant:
-                self.leftmost_variant = variant
-            if self.rightmost_variant < variant:
-                self.rightmost_variant = variant
+            self.leftmost_variant = min(self.leftmost_variant, variant)
+            self.rightmost_variant = max(self.rightmost_variant, variant)
         self.phases[variant] = phase
 
     def span(self):
@@ -64,12 +63,12 @@ class PhasedBlock:
         return self.rightmost_variant.position - self.leftmost_variant.position
 
     def variants(self):
-        return list(sorted(self.phases.keys()))
+        return sorted(self.phases.keys())
 
     def count_snvs(self):
         return sum(int(variant.is_snv()) for variant in self.phases)
 
-    def split(self, split_left: int, split_right: int) -> Tuple["PhasedBlock", "PhasedBlock"]:
+    def split(self, split_left: int, split_right: int) -> tuple["PhasedBlock", "PhasedBlock"]:
         """Split this phaseblock in two, based on given positions. The first phaseblock will contain
         the variants to the left of split_left and the second the variants to the right of split_right.
         """
@@ -84,7 +83,7 @@ class PhasedBlock:
         return left_block, right_block
 
     def __repr__(self):
-        return f"PhasedBlock({str(self.phases)})"
+        return f"PhasedBlock({self.phases!s})"
 
     def __len__(self):
         return len(self.phases)
@@ -185,7 +184,7 @@ class DetailedStats:
         assert self.phased + self.unphased + self.singletons == self.heterozygous_variants
 
 
-def n50(lengths: List[int], target_length: Optional[int] = None) -> int:
+def n50(lengths: list[int], target_length: Optional[int] = None) -> int:
     if target_length is None:
         target_length = sum(lengths)
 
@@ -198,7 +197,7 @@ def n50(lengths: List[int], target_length: Optional[int] = None) -> int:
     return 0
 
 
-def compute_ng50(blocks: List[PhasedBlock], chr_lengths: Dict[str, int]):
+def compute_ng50(blocks: list[PhasedBlock], chr_lengths: dict[str, int]):
     chromosomes = {b.chromosome for b in blocks}
     target_length = 0
     for chromosome in sorted(chromosomes):
@@ -250,7 +249,7 @@ class PhasingStats:
     def add_heterozygous_snvs(self, snvs: int):
         self.heterozygous_snvs += snvs
 
-    def get_nonoverlapping_blocks(self) -> List[PhasedBlock]:
+    def get_nonoverlapping_blocks(self) -> list[PhasedBlock]:
         """Split phase blocks into nonoverlapping subblocks"""
         pos_sorted_blocks = sorted(
             self.blocks, key=lambda b: (b.chromosome, b.leftmost_variant.position), reverse=True
@@ -289,7 +288,7 @@ class PhasingStats:
 
         return split_blocks
 
-    def get_detailed_stats(self, chr_lengths: Optional[Dict[str, int]] = None) -> DetailedStats:
+    def get_detailed_stats(self, chr_lengths: Optional[dict[str, int]] = None) -> DetailedStats:
         """Return DetailedStats"""
         block_sizes = sorted(len(block) for block in self.blocks if len(block) > 1)
         n_singletons = sum(1 for block in self.blocks if len(block) == 1)
@@ -344,13 +343,13 @@ class PhasingStats:
             )
 
 
-def unpack_chromosomes(chromosomes: List[str]) -> List[str]:
+def unpack_chromosomes(chromosomes: list[str]) -> list[str]:
     """Unpack list chromosomes by splitting comma-separated entries."""
     unpacked = (chromosome for entry in chromosomes for chromosome in entry.split(","))
     return [chromosome for chromosome in unpacked if chromosome != ""]
 
 
-def parse_chr_lengths(filename) -> Dict[str, int]:
+def parse_chr_lengths(filename) -> dict[str, int]:
     """
     Parse chromosome lengths from file filename. The file should have two columns with
     chromosome names and lengths respectively.
@@ -380,7 +379,7 @@ def parse_variant_tables(
 
 def get_chr_lengths(
     vcf_reader: VcfReader, chr_lengths_file: Optional[str] = None
-) -> Dict[str, int]:
+) -> dict[str, int]:
     """
     Return a dictionary that maps a chromosome name to the chromosome’s length. The
     mapping is read from chr_lengths_file if provided, and from the VCF header otherwise.
@@ -403,7 +402,7 @@ def get_chr_lengths(
 
 
 def write_to_block_list(
-    block_list_file, blocks: Dict[int, PhasedBlock], chromosome: str, sample: str
+    block_list_file, blocks: dict[int, PhasedBlock], chromosome: str, sample: str
 ):
     """
     Write phase blocks for chromosome to block_list_file.
@@ -438,7 +437,7 @@ def get_phase_blocks(
     sample: str,
     stats: PhasingStats,
     variant_table: VariantTable,
-) -> Dict[int, PhasedBlock]:
+) -> dict[int, PhasedBlock]:
     """
     Parse phase blocks from variant_table for sample. Returns map of block ids to phaseblocks.
     """
@@ -446,7 +445,7 @@ def get_phase_blocks(
     phases = variant_table.phases_of(sample)
     assert len(genotypes) == len(phases) == len(variant_table.variants)
 
-    blocks: Dict[int, PhasedBlock] = defaultdict(PhasedBlock)
+    blocks: dict[int, PhasedBlock] = defaultdict(PhasedBlock)
     prev_block = GtfBlock()
     for variant, genotype, phase in zip(variant_table.variants, genotypes, phases):
         stats.add_variants(1)
@@ -473,7 +472,7 @@ def get_phase_blocks(
 
     # Add chromosome information to each block. This is needed to
     # sort blocks later when we compute NG50s
-    for block_id, block in blocks.items():
+    for block in blocks.values():
         block.chromosome = chromosome
 
     if gtfwriter and prev_block.id is not None:
@@ -509,9 +508,7 @@ def run_stats(
         else:
             logger.info(f"Found {len(vcf_reader.samples)} sample(s) in input VCF")
         if sample:
-            if sample in vcf_reader.samples:
-                sample = sample
-            else:
+            if sample not in vcf_reader.samples:
                 logger.error(f"Requested sample ({sample}) not found")
                 return 1
         else:

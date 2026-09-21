@@ -10,8 +10,6 @@ much from the average.
 
 import logging
 
-from typing import List
-
 from whatshap.vcf import VariantTable
 
 logger = logging.getLogger(__name__)
@@ -80,7 +78,7 @@ class VariantInfo:
             self.nodes_modified = True
 
     def get_phasable(self):
-        return sorted(list(self.phasable))
+        return sorted(self.phasable)
 
     def remove_phasable(self, pos):
         if pos in self.phasable:
@@ -153,7 +151,7 @@ def compute_phasable_variants(
             for a in gt:
                 alleles_set.add(a)
 
-        alleles = sorted(list(alleles_set))
+        alleles = sorted(alleles_set)
 
         if len(alleles) > 2:
             # genotypes are not bi-allelic
@@ -187,9 +185,9 @@ def diff_ratio(ratio):
 
 def filter_variants(
     varinfo: VariantInfo,
-    parent_cov: List[int],
-    co_parent_cov: List[int],
-    progeny_cov: List[int],
+    parent_cov: list[int],
+    co_parent_cov: list[int],
+    progeny_cov: list[int],
     cutoff: float,
 ):
     phasable_indices = varinfo.get_phasable()

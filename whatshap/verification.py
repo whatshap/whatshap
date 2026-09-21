@@ -4,7 +4,7 @@ from whatshap.core import Read
 def verify_mec_score_and_partitioning(dp_table, reads):
     """Confirms that the results reported by dp_table are consistent: check
     whether the reported partitioning leads to the reported MEC score."""
-    superreads, transmission_vector = dp_table.get_super_reads()
+    superreads, _transmission_vector = dp_table.get_super_reads()
     assert len(superreads) == 1
     superreads = superreads[0]
     assert len(superreads) == 2
@@ -42,9 +42,5 @@ def verify_mec_score_and_partitioning(dp_table, reads):
             else:
                 assert False
         n += 1
-    print(
-        "Expected MEC score: {}, obtained MEC score: {}".format(
-            mec_score, dp_table.get_optimal_cost()
-        )
-    )
+    print(f"Expected MEC score: {mec_score}, obtained MEC score: {dp_table.get_optimal_cost()}")
     assert mec_score == dp_table.get_optimal_cost()

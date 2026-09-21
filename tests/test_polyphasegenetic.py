@@ -44,7 +44,7 @@ def test_read_progeny_vcf():
     assert table.chromosome == "StSOLv1.1ch03"
     assert len(table.variants) == 198
     assert len(table.samples) == 64
-    assert table.samples == ["Progeny_{}".format(i) for i in range(1, 65)]
+    assert table.samples == [f"Progeny_{i}" for i in range(1, 65)]
 
     assert table.variants[0].reference_allele == "C"
     assert table.variants[0].alternative_allele == "T"

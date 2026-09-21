@@ -7,7 +7,8 @@ from abc import ABC, abstractmethod
 import math
 from pathlib import Path
 
-from typing import Optional, Union, Sequence, List, IO, Iterator, Mapping
+from typing import Optional, Union, IO
+from collections.abc import Sequence, Iterator, Mapping
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 import logging
@@ -58,7 +59,7 @@ def recombination_cost_map(
 
     # Step 1: compute cumulative genetic distances from start of chromosome
     #         to each position.
-    cumulative_distances: List[float] = []
+    cumulative_distances: list[float] = []
     # i and j are such that genetic_map[i].position <= position <= genetic_map[j].position
     # i and j are None if no such values exist (because we are at the end of the list)
     i: Optional[int] = None
@@ -129,7 +130,7 @@ def mendelian_conflict(genotypem: Genotype, genotypef: Genotype, genotypec: Geno
     alleles_c = genotypec.as_vector()
     if alleles_c[0] in alleles_m and alleles_c[1] in alleles_f:
         return False
-    elif alleles_c[1] in alleles_m and alleles_c[0] in alleles_f:
+    elif alleles_c[1] in alleles_m and alleles_c[0] in alleles_f:  # noqa: SIM103
         return False
     else:
         return True

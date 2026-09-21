@@ -214,7 +214,7 @@ def test_ps_tag(algorithm, expected_lines, tmpdir):
         algorithm=algorithm,
     )
     with open(out) as f:
-        lines = [line for line in f.readlines() if not line.startswith("#")]
+        lines = [line for line in f if not line.startswith("#")]
 
     # TODO This is quite an ugly way to test phased VCF writing (see parametrization)
     for i in range(5):
@@ -241,7 +241,7 @@ def test_ps_tag(algorithm, expected_lines, tmpdir):
 
 def assert_phasing(phases, expected_phases):
     # TODO: this code is not "block aware". Would be useful to extend it to compare phasings per block
-    print("assert_phasing({}, {})".format(phases, expected_phases))
+    print(f"assert_phasing({phases}, {expected_phases})")
     assert len(phases) == len(expected_phases)
     haplotypes = []
     expected_haplotypes = []

@@ -120,9 +120,9 @@ class HapCutParser:
                         haplotype_2,
                         chromosome,
                         position,
-                        reference_allele,
-                        alternative_allele,
-                        genotype,
+                        _reference_allele,
+                        _alternative_allele,
+                        _genotype,
                     ) = fields[:8]
 
                     if len(fields) == 9:  # hapCUT 1
@@ -185,7 +185,7 @@ def run_hapcut2vcf(hapcut, vcf, output=sys.stdout):
 
             # Build one read for each haplotype and the connected components
             haplotypes = [Read(str(i)) for i in (1, 2)]
-            components = dict()
+            components = {}
             for block in blocks:
                 for variant in block:
                     haplotypes[0].add_variant(variant.position, variant.haplotype1, 0)

@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
 """
 Phase variants in a VCF with the WhatsHap algorithm
 
 Read a VCF and one or more files with phase information (BAM/CRAM or VCF phased
 blocks) and phase the variants. The phased VCF is written to standard output.
 """
+
 import logging
 import sys
 import platform
@@ -17,17 +17,11 @@ from contextlib import ExitStack
 from pathlib import Path
 from typing import (
     Optional,
-    List,
     TextIO,
     Union,
-    Dict,
-    Sequence,
-    Mapping,
-    Tuple,
-    Set,
-    MutableSequence,
     IO,
 )
+from collections.abc import Sequence, Mapping, MutableSequence
 
 from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VariantTable
 from whatshap import __version__
@@ -72,7 +66,7 @@ def find_components(
     phased_positions: Sequence[int],
     reads: ReadSet,
     master_block: Optional[Sequence[int]] = None,
-    heterozygous_positions: Optional[Mapping[int, Set[int]]] = None,
+    heterozygous_positions: Optional[Mapping[int, set[int]]] = None,
 ) -> Mapping[int, int]:
     """
     Return a dict that maps each variant position to the component it is in.
@@ -122,7 +116,7 @@ def find_largest_component(components: Mapping[int, int]) -> Sequence[int]:
     blocks = defaultdict(list)
     for position, block_id in components.items():
         blocks[block_id].append(position)
-    largest: List[int] = []
+    largest: list[int] = []
     for block in blocks.values():
         if len(block) > len(largest):
             largest = block
@@ -130,7 +124,7 @@ def find_largest_component(components: Mapping[int, int]) -> Sequence[int]:
     return largest
 
 
-def best_case_blocks(reads: ReadSet) -> Tuple[int, int]:
+def best_case_blocks(reads: ReadSet) -> tuple[int, int]:
     """
     Given a list of core reads, determine the number of phased blocks that
     would result if each variant were actually phased.
@@ -147,7 +141,7 @@ def best_case_blocks(reads: ReadSet) -> Tuple[int, int]:
         for position in read_positions[1:]:
             component_finder.merge(read_positions[0], position)
     # A dict that maps each component to the number of variants it contains
-    component_sizes: Dict[int, int] = defaultdict(int)
+    component_sizes: dict[int, int] = defaultdict(int)
     for position in positions:
         component_sizes[component_finder.find(position)] += 1
     non_singletons = [component for component, size in component_sizes.items() if size > 1]
@@ -155,7 +149,7 @@ def best_case_blocks(reads: ReadSet) -> Tuple[int, int]:
 
 
 def select_reads(
-    readset: ReadSet, max_coverage: int, preferred_source_ids: Optional[Set[int]]
+    readset: ReadSet, max_coverage: int, preferred_source_ids: Optional[set[int]]
 ) -> ReadSet:
     logger.debug(
         "Reducing coverage to at most %dX by selecting most informative reads ...", max_coverage
@@ -237,7 +231,7 @@ class ReadList:
             )
 
 
-def setup_pedigree(ped_path: str, samples: Sequence[str]) -> Tuple[Sequence[Trio], Set[str]]:
+def setup_pedigree(ped_path: str, samples: Sequence[str]) -> tuple[Sequence[Trio], set[str]]:
     """
     Read in PED file to set up list of relationships.
 
@@ -292,8 +286,8 @@ def run_whatshap(
     reference: Union[None, bool, str] = False,
     output: TextIO = sys.stdout,
     samples: Optional[Sequence[str]] = None,
-    chromosomes: Optional[List[str]] = None,
-    excluded_chromosomes: Optional[List[str]] = None,
+    chromosomes: Optional[list[str]] = None,
+    excluded_chromosomes: Optional[list[str]] = None,
     ignore_read_groups: bool = False,
     only_snvs: bool = False,
     mapping_quality: int = 20,
@@ -461,8 +455,8 @@ def run_whatshap(
             # TODO should this be done in PhasedInputReader.__init__?
             phased_input_reader.read_vcfs()
 
-        superreads: Dict[str, ReadSet]
-        components: Dict
+        superreads: dict[str, ReadSet]
+        components: dict
         included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             chromosome = variant_table.chromosome
@@ -473,12 +467,12 @@ def run_whatshap(
                     chromosome,
                 )
                 with timers("write_vcf"):
-                    superreads, components = dict(), dict()
+                    superreads, components = {}, {}
                     vcf_writer.write(chromosome, superreads, components)
                 continue
 
             # These two variables hold the phasing results for all samples
-            superreads, components = dict(), dict()
+            superreads, components = {}, {}
 
             # Iterate over all families to process, i.e. a separate DP table is created
             # for each family.
@@ -505,7 +499,7 @@ def run_whatshap(
                 )
 
                 # Get the reads belonging to each sample
-                readsets = dict()  # TODO this could become a list
+                readsets = {}  # TODO this could become a list
                 for sample in family:
                     with timers("read_bam"):
                         readset, vcf_source_ids = phased_input_reader.read(
@@ -684,7 +678,7 @@ def compute_overall_components(
     superreads_list: Sequence[ReadSet],
 ) -> Mapping[int, int]:
     master_block = None
-    heterozygous_positions_by_sample: Optional[Dict[int, Set[int]]] = None
+    heterozygous_positions_by_sample: Optional[dict[int, set[int]]] = None
     accessible_positions_set = set(accessible_positions)
     # If we distrusted genotypes, we need to re-determine which sites are homo-/heterozygous after phasing
     if distrust_genotypes:
@@ -729,7 +723,7 @@ def log_component_stats(components: Mapping[int, int], n_accessible_positions: i
 
 
 def log_best_case_phasing_info(readset: ReadSet, selected_reads: ReadSet) -> None:
-    (n_best_case_blocks, n_best_case_nonsingleton_blocks) = best_case_blocks(readset)
+    (_n_best_case_blocks, n_best_case_nonsingleton_blocks) = best_case_blocks(readset)
     (n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov) = best_case_blocks(selected_reads)
     logger.info(
         "Best-case phasing would result in %d non-singleton phased block%s (%d singletons). ",
@@ -745,7 +739,7 @@ def log_best_case_phasing_info(readset: ReadSet, selected_reads: ReadSet) -> Non
 
 def setup_families(
     samples: Sequence[str], ped_path: Optional[str], max_coverage: int
-) -> Tuple[Mapping[str, Sequence[str]], Mapping[str, Sequence[Trio]]]:
+) -> tuple[Mapping[str, Sequence[str]], Mapping[str, Sequence[Trio]]]:
     """
     Return families, family_trios pair.
 
@@ -759,7 +753,7 @@ def setup_families(
     # Keep track of connected components (aka families) in the pedigree
     family_finder = ComponentFinder(samples)
     if ped_path is not None:
-        all_trios, pedigree_samples = setup_pedigree(ped_path, samples)
+        all_trios, _pedigree_samples = setup_pedigree(ped_path, samples)
         for trio in all_trios:
             if trio.father is not None:
                 family_finder.merge(trio.father, trio.child)
@@ -814,7 +808,7 @@ def find_phaseable_variants(
     include_homozygous: bool,
     trios: Sequence[Trio],
     variant_table: VariantTable,
-) -> Tuple[Sequence[int], VariantTable]:
+) -> tuple[Sequence[int], VariantTable]:
     # variant indices with at least one missing genotype
     missing_genotypes = set()
     # variant indices with at least one heterozygous genotype
@@ -890,7 +884,7 @@ def log_time_and_memory_usage(timers, show_phase_vcfs):
 
 def merge_readsets(readsets) -> ReadSet:
     all_reads = ReadSet()
-    for sample, readset in readsets.items():
+    for readset in readsets.values():
         for read in readset:
             assert read.is_sorted(), "Add a read.sort() here"
             all_reads.add(read)
@@ -935,7 +929,7 @@ def create_pedigree(
     return pedigree
 
 
-def find_mendelian_conflicts(trios: Sequence[Trio], variant_table: VariantTable) -> Set[int]:
+def find_mendelian_conflicts(trios: Sequence[Trio], variant_table: VariantTable) -> set[int]:
     mendelian_conflicts = set()
     for trio in trios:
         if trio.mother is None or trio.father is None:

@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10"]
-        toxenv: [flake8, docs, twinecheck, black]
+        toxenv: [ruff, docs, twinecheck, black]
     steps:
     - uses: actions/checkout@v6
     - name: Set up Python ${{ matrix.python-version }}

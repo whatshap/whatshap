@@ -129,7 +129,7 @@ def test_compute_phasable_variants_1():
     phasable = vi.get_phasable()
 
     assert len(vi) == 135
-    assert all([x not in phasable for x in non_phasable])
+    assert all(x not in phasable for x in non_phasable)
     assert [x for x in range(135) if x not in non_phasable] == phasable
 
     vi = compute_phasable_variants(table, "Parent_B", "Parent_A", param)
@@ -197,7 +197,7 @@ def test_compute_phasable_variants_2():
     phasable = vi.get_phasable()
 
     assert len(vi) == 135
-    assert all([x not in phasable for x in non_phasable])
+    assert all(x not in phasable for x in non_phasable)
     assert [x for x in range(135) if x not in non_phasable] == phasable
 
     vi = compute_phasable_variants(table, "Parent_B", "Parent_A", param)
@@ -225,7 +225,7 @@ def test_compute_phasable_variants_3():
     print(phasable)
 
     assert len(vi) == 135
-    assert all([x not in phasable for x in non_phasable])
+    assert all(x not in phasable for x in non_phasable)
     assert [x for x in range(135) if x not in non_phasable] == phasable
 
     vi = compute_phasable_variants(table, "Parent_B", "Parent_A", param)
