@@ -240,7 +240,7 @@ class MultiallelicVcfVariant(VcfVariant):
 
 
 class GenotypeLikelihoods:
-    __slots__ = "log_prob_genotypes"
+    __slots__ = ("log_prob_genotypes", )
 
     def __init__(self, log_prob_genotypes: list[float]):
         """Likelihoods of all genotypes to be given as log10 of
