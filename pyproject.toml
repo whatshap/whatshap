@@ -98,10 +98,9 @@ build-verbosity = 1
 line-length = 120
 lint.ignore = [
     "SIM115",  # Use a context manager for opening files
+    "DTZ005",  # `datetime.datetime.now()` called without a `tz` argument
 
     "C408",    # Unnecessary `dict()` call (rewrite as a literal)
-    "DTZ005",  # `datetime.datetime.now()` called without a `tz` argument
-    "EXE001",  # Shebang is present but file is not executable
     "FA100",   # Add `from __future__ import annotations` to simplify `typing.Optional`
     "FURB129", # Instead of calling `readlines()`, iterate over file object directly
     "I001",    # Import block is un-sorted or un-formatted

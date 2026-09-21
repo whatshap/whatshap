@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Phase variants in a VCF with the WhatsHap algorithm
 
