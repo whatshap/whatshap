@@ -1,5 +1,4 @@
 env_list = ["ruff", "py310", "py311", "py312", "py313", "docs", "twinecheck", "black"]
-isolated_build = true
 
 [env_run_base]
 default_base_python = "3.10"
