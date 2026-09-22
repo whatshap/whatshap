@@ -1,0 +1,41 @@
+env_list = ["ruff", "py310", "py311", "py312", "py313", "docs", "twinecheck", "black"]
+isolated_build = true
+
+[env_run_base]
+default_base_python = "3.10"
+usedevelop = true
+deps = [
+    "pytest",
+    "hypothesis",
+    "Cython>=0.29.17",  # This can possibly be removed when tox 4 comes out
+]
+commands = [["pytest"]]
+
+[env.docs]
+skip_install = true
+deps = ["-r doc/requirements.txt"]
+commands = [
+    ["sphinx-build", "-q", "-W", "-b", "html", "-d", "{envtmpdir}/doctrees", "doc", "{envtmpdir}/html"]
+]
+
+[env.twinecheck]
+skip_install = true
+deps = ["twine", "build"]
+commands = [
+    ["python", "-m", "build", "--sdist", "--outdir", "{envtmpdir}/dist"],
+    ["twine", "check", "{envtmpdir}/dist/*"],
+]
+
+[env.black]
+skip_install = true
+deps = ["black==24.3.0"]
+commands = [["black", "--check", "whatshap/", "tests/", "setup.py"]]
+
+[env.ruff]
+deps = ["ruff==0.16"]
+skip_install = true
+commands = [["ruff", "check", "whatshap/", "tests/", "setup.py"]]
+
+[env.mypy]
+deps = ["mypy"]
+commands = [["mypy", "whatshap/"]]
