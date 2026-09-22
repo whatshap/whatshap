@@ -335,7 +335,7 @@ def prepare_haplotag_information(
     This allows to assign phase to paired-end reads based on both reads
     """
     n_multiple_phase_sets = 0
-    BX_tag_to_haplotype = defaultdict(list)
+    bx_tag_to_haplotype = defaultdict(list)
     # maps read name to (haplotype, quality, phaseset)
     read_to_haplotype = {}
     primary_info_by_repr = {}
@@ -414,7 +414,7 @@ def prepare_haplotag_information(
                 continue
 
             if not ignore_linked_read and read.has_BX_tag():
-                BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, first_ht, phaseset))
+                bx_tag_to_haplotype[read.BX_tag].append((read.reference_start, first_ht, phaseset))
 
             for r in reads_to_consider:
                 read_repr = read_representation(r, as_primary=False)
@@ -423,7 +423,7 @@ def prepare_haplotag_information(
                     f"Assigned read {r.name} to haplotype {first_ht} with a "
                     f"quality of {quality} based on {len(r)} covered variants"
                 )
-    return BX_tag_to_haplotype, read_to_haplotype, n_multiple_phase_sets, primary_info_by_repr
+    return bx_tag_to_haplotype, read_to_haplotype, n_multiple_phase_sets, primary_info_by_repr
 
 
 def normalize_user_regions(
