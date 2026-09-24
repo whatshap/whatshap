@@ -5,6 +5,8 @@ Changes
 development version
 -------------------
 
+* :issue:`624`: `haplotag` now ignores invalid BX tags (linked-read
+  barcodes).
 * Dropped support for Python 3.9
 
 v2.8 (2025-06-08)

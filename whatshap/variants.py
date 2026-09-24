@@ -4,6 +4,7 @@ Detect variants in reads.
 
 import logging
 import csv
+import re
 from collections import defaultdict, Counter
 from typing import Optional
 from collections.abc import Iterable, Iterator
@@ -19,6 +20,20 @@ from .align import edit_distance, edit_distance_affine_gap, kmer_align, enumerat
 from ._variants import _iterate_cigar, _detect_alleles
 
 logger = logging.getLogger(__name__)
+
+
+# BX tags that match this regular expression are considered to be invalid.
+# In particular, they should not be within `haplotag` to assign reads to
+# read clouds (i.e., two reads with ACNNGT-1 and ACNNGT-1 cannot safely be
+# assumed to come from the same haplotype).
+IGNORE_BX_REGEX = re.compile(
+    """
+    [ACGTN]*N[ACGTN]*-.+ |  # 10X/TELLseq
+    0_[0-9]+_[0-9]+ | [0-9]+_0_[0-9]+ | [0-9]+_[0-9]+_0 |  # stLFR 
+    ([ABCD][0-9]+)*[ABCD]00([ABCD][0-9]+)*  # Haplotagging
+    """,
+    re.VERBOSE,
+)
 
 
 class ReadSetError(Exception):
@@ -464,7 +479,7 @@ class ReadSetReader:
                 return default
 
         for alignment in alignments:
-            barcode = get_tag_or_default(alignment, "BX", "")
+            barcode = get_barcode(alignment.bam_alignment)
             hp = get_tag_or_default(alignment, "HP", -1)
             ps = get_tag_or_default(alignment, "PS", -1)
             # Some 10X bams appear to use a Z type for the PS tag even when they are integers
@@ -919,6 +934,30 @@ class ReadSetReader:
 
     def close(self):
         self._reader.close()
+
+
+def get_barcode(alignment: AlignedSegment) -> Optional[str]:
+    """
+    Return the value of the BX tag (barcode), but only if the barcode should not be
+    ignored.
+
+    The VX tag is used to determine if the barcode should be ignored.
+    If it does not exist, a regular expression is used to detect invalid barcodes.
+    """
+    if not alignment.has_tag("BX"):
+        return None
+
+    bx = alignment.get_tag("BX")
+    if alignment.has_tag("VX"):
+        vx = alignment.get_tag("VX")
+        if vx == 1:
+            return bx
+        elif vx == 0:
+            return None
+
+    if IGNORE_BX_REGEX.fullmatch(bx) is None:
+        return bx
+    return None
 
 
 def merge_two_reads(read1: Read, read2: Read) -> Read:

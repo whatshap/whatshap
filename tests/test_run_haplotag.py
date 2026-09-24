@@ -995,6 +995,80 @@ def test_haplotag_10X_ignore_linked_read(tmp_path):
             assert a2.get_tag("PC") == expected_no_links[name][1]
 
 
+IGNORED_BX_TAGS = (
+    "ATGGGANAATCG-1",  # 10X/TELLseq
+    "0_2_459",  # stLFR
+    "2_0_459",  # stLFR
+    "2_459_0",  # stLFR
+    "A54C91B00D37",  # Haplotagging (the method, not this subcommand)
+)
+
+
+@pytest.mark.parametrize("ignored_bx_tag", IGNORED_BX_TAGS)
+def test_haplotag_ignored_bx_tags_regex(ignored_bx_tag):
+    from whatshap.variants import IGNORE_BX_REGEX
+
+    assert IGNORE_BX_REGEX.fullmatch(ignored_bx_tag) is not None
+
+    for tag in (
+        "ACGT-1",
+        "10_20_30",
+        "A10B20C30D40",
+    ):
+        assert IGNORE_BX_REGEX.fullmatch(tag) is None
+
+
+@pytest.mark.parametrize("ignored_bx_tag", IGNORED_BX_TAGS)
+def test_haplotag_10x_invalid_bx_tag_gets_ignored(tmp_path, ignored_bx_tag):
+    ignoredbx_bam = tmp_path / "invalid_bx.bam"
+    with (
+        pysam.AlignmentFile("tests/data/haplotag.10X_3.bam") as inbam,
+        pysam.AlignmentFile(ignoredbx_bam, mode="wb", template=inbam) as outbam,
+    ):
+        for record in inbam:
+            if record.get_tag("BX") == "GCAGTTCAATCGGT-1":
+                record.set_tag("BX", ignored_bx_tag)
+            outbam.write(record)
+    pysam.index(str(ignoredbx_bam))
+    tagged_bam = tmp_path / "tagged.bam"
+    run_haplotag(
+        variant_file="tests/data/haplotag.10X.vcf.gz",
+        alignment_file=ignoredbx_bam,
+        output=tagged_bam,
+    )
+    for record in pysam.AlignmentFile(tagged_bam):
+        if record.query_name == "read5":
+            # This read does not cover any variants and would therefore get tagged
+            # only because it has the same BX as other reads. We do not want it to be
+            # tagged because the BX tag follows one of the ignored patterns.
+            assert not record.has_tag("HP")
+
+
+def test_haplotag_10x_bx_tag_ignored_with_vx0(tmp_path):
+    ignoredbx_bam = tmp_path / "invalid_bx.bam"
+    with (
+        pysam.AlignmentFile("tests/data/haplotag.10X_3.bam") as inbam,
+        pysam.AlignmentFile(ignoredbx_bam, mode="wb", template=inbam) as outbam,
+    ):
+        for record in inbam:
+            if record.get_tag("BX") == "GCAGTTCAATCGGT-1":
+                record.set_tag("VX", 0)
+            outbam.write(record)
+    pysam.index(str(ignoredbx_bam))
+    tagged_bam = tmp_path / "tagged.bam"
+    run_haplotag(
+        variant_file="tests/data/haplotag.10X.vcf.gz",
+        alignment_file=ignoredbx_bam,
+        output=tagged_bam,
+    )
+    for record in pysam.AlignmentFile(tagged_bam):
+        if record.query_name == "read5":
+            # This read does not cover any variants and would therefore get tagged
+            # only because it has the same BX as other reads. We do not want it to be
+            # tagged because the VX tag is set to 0.
+            assert not record.has_tag("HP")
+
+
 def test_haplotag_supplementary(tmp_path):
     # test --tag-supplementary option which assigns supplementary
     # reads to haplotypes based on the tag of their primary alignment.
