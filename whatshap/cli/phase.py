@@ -290,6 +290,7 @@ def run_whatshap(
     excluded_chromosomes: Optional[list[str]] = None,
     ignore_read_groups: bool = False,
     only_snvs: bool = False,
+    tag_homozygous: bool = False,
     mapping_quality: int = 20,
     read_merging: bool = False,
     read_merging_error_rate: float = 0.15,
@@ -405,6 +406,7 @@ def run_whatshap(
                     out_file=output,
                     tag=tag,
                     only_snvs=only_snvs,
+                    tag_homozygous=tag_homozygous,
                 )
             )
         except (OSError, VcfError) as e:
@@ -723,8 +725,8 @@ def log_component_stats(components: Mapping[int, int], n_accessible_positions: i
 
 
 def log_best_case_phasing_info(readset: ReadSet, selected_reads: ReadSet) -> None:
-    (_n_best_case_blocks, n_best_case_nonsingleton_blocks) = best_case_blocks(readset)
-    (n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov) = best_case_blocks(selected_reads)
+    _n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(readset)
+    n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(selected_reads)
     logger.info(
         "Best-case phasing would result in %d non-singleton phased block%s (%d singletons). ",
         n_best_case_nonsingleton_blocks_cov,
@@ -1065,6 +1067,10 @@ def add_arguments(parser):
         default=20, type=int, help="Minimum mapping quality (default: %(default)s)")
     arg("--indels", dest="indels_used", action="store_true", help=SUPPRESS)
     arg("--only-snvs", default=False, action="store_true", help="Phase only SNVs")
+    arg("--tag-homozygous", default=False, action="store_true",
+        help="Also write homozygous non-reference calls as phased (e.g. 1|1) and give them "
+        "the PS of the block they lie in. A call is assigned only if the nearest phased "
+        "heterozygous variants on both sides belong to the same block. Requires --tag=PS.")
     arg("--ignore-read-groups", default=False, action="store_true",
         help="Ignore read groups in BAM/CRAM header and assume all reads come "
         "from the same sample.")
@@ -1164,6 +1170,8 @@ def validate(args, parser):
             "Option --genmap can only be used when working on exactly one "
             "chromosome (use --chromosome)"
         )
+    if args.tag_homozygous and args.tag != "PS":
+        parser.error("Option --tag-homozygous can only be used with --tag=PS.")
     if args.include_homozygous and not args.distrust_genotypes:
         parser.error("Option --include-homozygous can only be used with --distrust-genotypes.")
     if args.use_ped_samples and not args.ped:

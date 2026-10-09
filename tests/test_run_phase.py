@@ -12,7 +12,6 @@ from whatshap.cli.phase import run_whatshap
 from whatshap.cli import CommandLineError
 from whatshap.vcf import VcfReader, VariantCallPhase
 
-
 trio_bamfile = "tests/data/trio.pacbio.bam"
 trio_merged_bamfile = "tests/data/trio-merged-blocks.bam"
 trio_paired_end_bamfile = "tests/data/paired_end.sorted.bam"
@@ -1041,3 +1040,34 @@ def test_paired_end_phase(tmp_path):
             VariantCallPhase(block_id=76, phase=(1, 0), quality=None),
         ],
     )
+
+
+def test_phase_tag_homozygous(tmp_path):
+    # variants-homozygous.vcf is variants.vcf plus two 1/1 calls: one before the
+    # single block the PacBio data produces (10854..26081) and one inside it.
+    out = tmp_path / "out.vcf"
+    run_whatshap(
+        phase_input_files=["tests/data/pacbio/pacbio.bam"],
+        variant_file="tests/data/pacbio/variants-homozygous.vcf",
+        reference="tests/data/pacbio/reference.fasta",
+        output=str(out),
+        ignore_read_groups=True,
+        tag_homozygous=True,
+    )
+    with pysam.VariantFile(str(out)) as f:
+        calls = {rec.pos: rec.samples[0] for rec in f}
+    # inside the block: phased, with the block's PS
+    assert calls[12500].phased and calls[12500]["GT"] == (1, 1)
+    assert calls[12500]["PS"] == calls[12490]["PS"] == 10854
+    # outside the block: left alone
+    assert not calls[10000].phased
+    assert calls[10000].get("PS") is None
+    # hom-ref calls are not tagged
+    assert not calls[11850].phased
+
+    # Readers still ignore homozygous calls when reconstructing blocks
+    tables = list(VcfReader(str(out), phases=True))
+    phases = dict(
+        zip((v.position for v in tables[0].variants), tables[0].phases_of(tables[0].samples[0]))
+    )
+    assert phases[12500 - 1] is None

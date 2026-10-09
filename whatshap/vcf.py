@@ -7,6 +7,7 @@ import sys
 import math
 import logging
 import itertools
+from bisect import bisect_left
 from copy import deepcopy
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
@@ -1065,6 +1066,7 @@ class PhasedVcfWriter(VcfAugmenter):
         include_haploid_sets: bool = False,
         only_snvs: bool = False,
         mav: bool = False,
+        tag_homozygous: bool = False,
     ):
         """
         in_path -- Path to input VCF, used as template.
@@ -1073,9 +1075,15 @@ class PhasedVcfWriter(VcfAugmenter):
         out_file -- Open file-like object to which VCF is written.
         tag -- which type of tag to write, either 'PS' or 'HP'. 'PS' is standardized;
             'HP' is compatible with GATK’s ReadBackedPhasing.
+        tag_homozygous -- if True, homozygous non-reference calls that lie between two
+            consecutive phased heterozygous variants of the same block are written as
+            phased (e.g. 1|1) with that block's PS. Only supported for tag="PS".
         """
         if tag not in ("HP", "PS"):
             raise ValueError('Tag must be either "HP" or "PS"')
+        if tag_homozygous and tag != "PS":
+            raise ValueError("tag_homozygous is only supported with the PS tag")
+        self._tag_homozygous = tag_homozygous
         self.tag = tag
         self.ploidy = ploidy
         super().__init__(in_path, command_line, out_file, include_haploid_sets)
@@ -1131,6 +1139,34 @@ class PhasedVcfWriter(VcfAugmenter):
             call["HS"] = [comp + 1 for comp in haploid_component]
         call.phased = True
 
+    @staticmethod
+    def _enclosing_blocks(components: dict, phases: dict):
+        """
+        Return a function that maps a position to the block that encloses it, or None.
+
+        A position is enclosed by a block if the nearest phased heterozygous variant
+        to its left and the nearest one to its right both belong to that block. This is
+        deliberately conservative: positions in gaps between blocks, outside of all
+        blocks, or inside interleaved blocks are not assigned.
+        """
+        het_positions = sorted(
+            pos for pos, phase in phases.items() if pos in components and len(set(phase)) > 1
+        )
+        het_blocks = [components[pos] for pos in het_positions]
+
+        def enclosing_block(pos: int) -> Optional[int]:
+            i = bisect_left(het_positions, pos)
+            if 0 < i < len(het_positions) and het_positions[i] != pos:
+                if het_blocks[i - 1] == het_blocks[i]:
+                    return het_blocks[i]
+            return None
+
+        return enclosing_block
+
+    @staticmethod
+    def _is_hom_alt(gt) -> bool:
+        return (gt is not None) and (len(set(gt)) == 1) and (gt[0] not in (None, 0))
+
     def write(
         self,
         chromosome: str,
@@ -1173,6 +1209,13 @@ class PhasedVcfWriter(VcfAugmenter):
                     sample_phases[sample][variants[0].position] = phasing
                     sample_genotypes[sample][variants[0].position] = Genotype(list(phasing))
 
+        enclosing_block = {}
+        if self._tag_homozygous:
+            for sample in sample_superreads:
+                enclosing_block[sample] = self._enclosing_blocks(
+                    sample_components[sample], sample_phases[sample]
+                )
+
         prev_pos = None
         for record in self._record_modifier(chromosome):
             self._remove_existing_phasing(record, list(sample_superreads))
@@ -1195,6 +1238,12 @@ class PhasedVcfWriter(VcfAugmenter):
                     components = sample_components[sample]
                     phases = sample_phases[sample]
                     if pos in components and pos in phases:
+                        break
+                    if (
+                        self._tag_homozygous
+                        and self._is_hom_alt(record.samples[sample].get("GT"))
+                        and enclosing_block[sample](pos) is not None
+                    ):
                         break
             else:
                 continue
@@ -1248,6 +1297,13 @@ class PhasedVcfWriter(VcfAugmenter):
                         else None
                     )
                     self._set_phasing_tags(call, components[pos], phases[pos], haploid_component)
+                elif (
+                    self._tag_homozygous
+                    and self._is_hom_alt(call["GT"])
+                    and (block := enclosing_block[sample](pos)) is not None
+                ):
+                    # Homozygous call inside a block: trivially phased, tag for bookkeeping
+                    self._set_PS(call, block, tuple(call["GT"]))
                 else:
                     # Unphased
                     call[self.tag] = None
