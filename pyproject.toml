@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=77.0.3", "setuptools_scm[toml]", "cython~=3.0.11"]
+requires = ["setuptools>=77.0.3", "setuptools_scm[toml]", "cython~=3.3.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -26,7 +26,7 @@ dependencies = [
     "biopython >= 1.73",  # pyfaidx needs this for reading bgzipped FASTA files
     "scipy",
     "xopen >= 1.2.0",
-    "pulp >= 2",
+    "pulp >= 2,<4",
     "typing-extensions ~= 4.16.0",
 ]
 dynamic = ["version"]
